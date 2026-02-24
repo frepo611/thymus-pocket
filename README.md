@@ -1,6 +1,6 @@
 # Thymus Pocket
 
-Thymus Pocket is a mobile-first web client for a private BB-style forum (e.g. phpBB).  The goal is to provide a fast, secure, app-like experience on iOS and Android without modifying the existing forum.
+Thymus Pocket is a mobile-first web client for a private Simple Machines Forum 2.0x.  The goal is to provide a fast, secure, app-like experience on iOS and Android without modifying the existing forum.
 
 The system uses a Backend-for-Frontend (BFF) architecture to isolate the client from legacy systems, enforce security, and allow future evolution.
 
