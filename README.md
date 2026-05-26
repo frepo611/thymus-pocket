@@ -1,36 +1,36 @@
 # Thymus Pocket
 
-Thymus Pocket is a mobile-first web client for a private Simple Machines Forum 2.0x.  The goal is to provide a fast, secure, app-like experience on iOS and Android without modifying the existing forum.
+Thymus Pocket is a mobile-first web client for a private Simple Machines Forum 2.0x. The goal is to provide a fast, secure, app-like experience on iOS and Android without modifying the existing forum.
 
 The system uses a Backend-for-Frontend (BFF) architecture to isolate the client from legacy systems, enforce security, and allow future evolution.
 
 ## Goals
 
-* App-like experience on mobile (installable on iOS / Android)
+- App-like experience on mobile (installable on iOS / Android)
 
-* Strong security and isolation from the legacy forum
+- Strong security and isolation from the legacy forum
 
-* Fast navigation and search
+- Fast navigation and search
 
-* Minimal coupling to the forum implementation
+- Minimal coupling to the forum implementation
 
-* Ability to evolve without breaking the forum
+- Ability to evolve without breaking the forum
 
 ## Non-goals
 
-* Replacing the forum
+- Replacing the forum
 
-* Direct database access to the forum
+- Direct database access to the forum
 
-* Real-time guarantees
+- Real-time guarantees
 
 # Components
 
-* Progressive web app client (PWA)
-* Backend for frontend (BFF)
-* Internal services
-  * Redis
-  * SQLite FTS
+- Progressive web app client (PWA)
+- Backend for frontend (BFF)
+- Internal services
+  - Redis
+  - SQLite FTS
 
 ## Client (PWA)
 
@@ -38,41 +38,41 @@ The client is a Progressive Web App optimized for mobile usage.
 
 #### Characteristics
 
-* Installable on Android and iOS (Add to Home Screen)
+- Installable on Android and iOS (Add to Home Screen)
 
-* Offline-friendly using Service Worker + Cache API
+- Offline-friendly using Service Worker + Cache API
 
-* Touch-first UI
+- Touch-first UI
 
-* Fast navigation and perceived performance
+- Fast navigation and perceived performance
 
-* No access to forum cookies or credentials
+- No access to forum cookies or credentials
 
 #### Responsibilities
 
-* Render threads, posts, search results
+- Render threads, posts, search results
 
-* Manage UI state and offline cache
+- Manage UI state and offline cache
 
-* Authenticate only against the BFF
+- Authenticate only against the BFF
 
-* Never communicate directly with the forum
+- Never communicate directly with the forum
 
 #### Suggested Tech
 
-* Blazor WebAssembly
+- Blazor WebAssembly
 
-* Service Worker for caching and offline behavior
+- Service Worker for caching and offline behavior
 
-* IndexedDB for lightweight local storage
+- IndexedDB for lightweight local storage
 
 #### Security Model
 
-* Uses a single HttpOnly cookie (thymus_session)
+- Uses a single HttpOnly cookie (thymus_session)
 
-* No forum cookies are exposed to the browser
+- No forum cookies are exposed to the browser
 
-* All sensitive operations go through the BFF
+- All sensitive operations go through the BFF
 
 ### Backend for Frontend (BFF)
 
@@ -81,51 +81,73 @@ The BFF can be deployed on any machine (VPS, container host, local server) as lo
 
 #### Responsibilities
 
-* Authentication proxy to the forum
+- Authentication proxy to the forum
 
-* API normalization for the client
+- API normalization for the client
 
-* Session isolation
+- Session isolation
 
-* Rate limiting and CSRF protection
+- Rate limiting and CSRF protection
 
-* Caching of expensive operations
+- Caching of expensive operations
 
-* Search aggregation
+- Search aggregation
 
 #### Key Behaviors
 
-* On login, the BFF authenticates against the forum and stores the forum session server-side.
+- On login, the BFF authenticates against the forum and stores the forum session server-side.
 
-* The client only receives a BFF session cookie.
+- The client only receives a BFF session cookie.
 
-* All forum requests are proxied and sanitized.
+- All forum requests are proxied and sanitized.
 
 ## Internal Services
 
 ### Redis
 
-* Maps thymus_session → forum_session
+- Maps thymus_session → forum_session
 
-* Caches search results and hot data
+- Caches search results and hot data
 
-###  SQLite FTS
+### SQLite FTS
 
-* Local full-text index for fast search
+- Local full-text index for fast search
 
-* Built from forum data using batch sync
+- Built from forum data using batch sync
 
 # Existing Forum
 
-* The forum remains unchanged.
+- The forum remains unchanged.
 
-* Authentication remains authoritative
+- Authentication remains authoritative
 
-* Permissions and access rules remain intact
+- Permissions and access rules remain intact
 
-* The BFF acts as a controlled client
+- The BFF acts as a controlled client
 
-* No schema changes or plugins are required.
+- No schema changes or plugins are required.
+
+## SMF HTTP Model
+
+SMF 2.x does not expose a REST or JSON API. All interactions happen through a single front controller (`index.php`) using action-based query parameters.
+
+#### How it works
+
+- Requests are dispatched via `?action=<name>` query parameters, e.g. `?action=login2`, `?action=post2`, `?action=unread`.
+
+- Responses are typically rendered HTML. The only structured data endpoints are:
+  - `?action=.xml` — RSS/Atom feeds (XML)
+  - `?action=xmlhttp` — Internal AJAX helpers (XML fragments, not JSON)
+
+- Write operations (post, reply, vote, etc.) use HTML form submission with CSRF tokens (`sc` parameter) that SMF generates per session.
+
+#### Implications for the BFF
+
+- The BFF must act as an HTTP client that mimics a browser: follow redirects, manage cookies, extract CSRF tokens from responses.
+
+- Responses must be parsed (HTML scraping or XML parsing) and normalized into JSON before being sent to the client.
+
+- This coupling is isolated entirely inside the BFF — the client never knows SMF exists.
 
 # Authentication Flow (Summary)
 
@@ -149,29 +171,29 @@ Search evolves in stages.
 
 ## Phase 1 — Forum Search Proxy
 
-* BFF forwards search requests to the forum.
+- BFF forwards search requests to the forum.
 
-* Results are cached in Redis.
+- Results are cached in Redis.
 
-* Client receives normalized JSON.
+- Client receives normalized JSON.
 
 ## Phase 2 — Local Full-Text Index
 
-* Forum content is batch-synced into a SQLite FTS index.
+- Forum content is batch-synced into a SQLite FTS index.
 
-* Each forum thread becomes a search document.
+- Each forum thread becomes a search document.
 
-* Title and first posts are weighted higher.
+- Title and first posts are weighted higher.
 
-* Noise (BBCode, quotes) is stripped before indexing.
+- Noise (BBCode, quotes) is stripped before indexing.
 
 #### Benefits
 
-* Fast queries (milliseconds)
+- Fast queries (milliseconds)
 
-* Full control over ranking and filtering
+- Full control over ranking and filtering
 
-* No load on the forum database
+- No load on the forum database
 
 #### Hybrid Mode
 
@@ -181,55 +203,55 @@ If the local index returns weak results, fallback to forum search.
 
 The client uses a Service Worker to:
 
-* Cache application shell assets
+- Cache application shell assets
 
-* Cache recently viewed threads
+- Cache recently viewed threads
 
-* Enable offline browsing for recent content
+- Enable offline browsing for recent content
 
-* Reduce perceived latency
+- Reduce perceived latency
 
 Local storage is used for:
 
-* Recently accessed thread metadata
+- Recently accessed thread metadata
 
-* UI state
+- UI state
 
 The search index always lives on the server (not in the browser).
 
 # Security Principles
 
-* No direct client → forum communication
+- No direct client → forum communication
 
-* No forum cookies in the browser
+- No forum cookies in the browser
 
-* All requests validated and rate-limited in the BFF
+- All requests validated and rate-limited in the BFF
 
-* Minimal exposed surface area
+- Minimal exposed surface area
 
-* Stateless client
+- Stateless client
 
 #### Threat Model Assumptions
 
-* Trusted users (private forum)
+- Trusted users (private forum)
 
-* Defensive coding against accidental abuse and automation
+- Defensive coding against accidental abuse and automation
 
 # Deployment Model
 
 The architecture is location-agnostic. Components can run on:
 
-* VPS
+- VPS
 
-* Containers
+- Containers
 
-* Bare metal
+- Bare metal
 
-* Local lab machines
+- Local lab machines
 
 #### BFF requirement:
 
-* Public HTTPS endpoint for the BFF
+- Public HTTPS endpoint for the BFF
 
 The forum remains hosted where it currently runs.
 
@@ -237,15 +259,15 @@ The forum remains hosted where it currently runs.
 
 Potential extensions:
 
-* Personal relevance ranking
+- Personal relevance ranking
 
-* Thread recommendation
+- Thread recommendation
 
-* Push notifications
+- Push notifications
 
-* Encrypted client-side caching
+- Encrypted client-side caching
 
-* Multi-device session sync
+- Multi-device session sync
 
 The architecture supports incremental evolution without breaking compatibility.
 
