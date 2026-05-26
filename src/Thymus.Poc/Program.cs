@@ -36,7 +36,6 @@ try
         try
         {
             await client.GetAllTopicsAsync();
-            // Session is valid — produce a minimal artifacts object via login page
             auth = await client.GetArtifactsAsync();
         }
         catch (HttpRequestException)
@@ -151,6 +150,7 @@ else
         }
     }
 }
+
 Console.WriteLine();
 Console.WriteLine("=== Create New Topic Demo ===");
 var firstBoard = (await client.GetBoardUrlsAsync()).FirstOrDefault();
@@ -169,7 +169,6 @@ else
     Console.WriteLine($"New topic URL: {newTopicUrl ?? "(unknown)"}");
 }
 
-
 Console.WriteLine();
 Console.WriteLine("=== Post Reply Demo ===");
 if (!enableReplyDemo)
@@ -184,6 +183,20 @@ else
 {
     Console.WriteLine($"Posting reply to: {firstThread.Title}");
     await client.PostReplyAsync(firstThread.Url, "Re: " + firstThread.Title, "Test reply from Thymus PoC.");
+}
+
+Console.WriteLine();
+Console.WriteLine("=== Logout Demo ===");
+if (!enableLogoutDemo)
+{
+    Console.WriteLine("(disabled — set Smf:EnableLogoutDemo=true in appsettings.json to enable)");
+}
+else
+{
+    var loggedOut = await client.EnsureLoggedOutAsync();
+    Console.WriteLine(loggedOut
+        ? "Session is logged out."
+        : "Logout attempted, but login cookie is still present.");
 }
 
 static void PrintCookie(string label, CookieArtifact? cookie)

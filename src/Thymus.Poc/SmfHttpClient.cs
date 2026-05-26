@@ -164,6 +164,44 @@ public sealed class SmfHttpClient : IDisposable
         var html = await GetHtmlAsync();
         return ParseBoardUrls(html);
     }
+
+    public async Task<bool> LogoutAsync()
+    {
+        var homeHtml = await GetHtmlAsync();
+        var artifacts = ExtractAuthenticationArtifacts(homeHtml);
+
+        var logoutUrl = ExtractLogoutUrl(homeHtml)
+            ?? BuildLogoutUrl(artifacts);
+
+        if (string.IsNullOrWhiteSpace(logoutUrl))
+            throw new InvalidOperationException("Could not find a logout URL in the current SMF page.");
+
+        using var response = await _http.GetAsync(logoutUrl);
+        response.EnsureSuccessStatusCode();
+
+        var hasLoginCookie = GetCookies().Any(c =>
+            c.Name.StartsWith("SMFCookie", StringComparison.OrdinalIgnoreCase) &&
+            !c.Name.EndsWith("_tfa", StringComparison.OrdinalIgnoreCase));
+
+        Console.WriteLine(hasLoginCookie
+            ? "[SmfHttpClient] Logout requested, but login cookie still present."
+            : "[SmfHttpClient] Logout successful.");
+
+        return !hasLoginCookie;
+    }
+
+    public async Task<bool> EnsureLoggedOutAsync()
+    {
+        var hasLoginCookie = GetCookies().Any(c =>
+            c.Name.StartsWith("SMFCookie", StringComparison.OrdinalIgnoreCase) &&
+            !c.Name.EndsWith("_tfa", StringComparison.OrdinalIgnoreCase));
+
+        if (!hasLoginCookie)
+            return true;
+
+        return await LogoutAsync();
+    }
+
     public async Task<AuthenticationArtifacts> GetArtifactsAsync()
     {
         var html = await GetHtmlAsync();
@@ -344,6 +382,20 @@ public sealed class SmfHttpClient : IDisposable
             RegexOptions.IgnoreCase);
 
         return match.Success ? match.Groups["value"].Value : null;
+    }
+
+    private static string? ExtractLogoutUrl(string html)
+    {
+        var document = ParseDocument(html);
+        return document.QuerySelector("a[href*='action=logout']")?.GetAttribute("href");
+    }
+
+    private static string? BuildLogoutUrl(AuthenticationArtifacts artifacts)
+    {
+        if (string.IsNullOrWhiteSpace(artifacts.SessionVar) || string.IsNullOrWhiteSpace(artifacts.SessionId))
+            return null;
+
+        return $"index.php?action=logout;{artifacts.SessionVar}={artifacts.SessionId}";
     }
 
     private List<ThreadSummary> ParseThreadList(string html)
