@@ -9,8 +9,14 @@ var config = new ConfigurationBuilder()
     .Build();
 
 var baseUrl       = config["Smf:BaseUrl"]    ?? throw new InvalidOperationException("Smf:BaseUrl is required.");
-var username      = config["Smf:Username"]   ?? throw new InvalidOperationException("Smf:Username is required.");
-var password      = config["Smf:Password"]   ?? throw new InvalidOperationException("Smf:Password is required.");
+var username      = config["Smf:Username"];
+if (string.IsNullOrWhiteSpace(username))
+    throw new InvalidOperationException("Smf:Username is required (set via SMF_Smf__Username).");
+
+var password      = config["Smf:Password"];
+if (string.IsNullOrWhiteSpace(password))
+    throw new InvalidOperationException("Smf:Password is required (set via SMF_Smf__Password).");
+
 var cookieFileRaw   = config["Smf:CookieFile"] ?? "smf_session.json";
 var cookieFile      = Path.IsPathRooted(cookieFileRaw)
     ? cookieFileRaw
