@@ -11,8 +11,13 @@ var config = new ConfigurationBuilder()
 var baseUrl       = config["Smf:BaseUrl"]    ?? throw new InvalidOperationException("Smf:BaseUrl is required.");
 var username      = config["Smf:Username"]   ?? throw new InvalidOperationException("Smf:Username is required.");
 var password      = config["Smf:Password"]   ?? throw new InvalidOperationException("Smf:Password is required.");
-var cookieFile    = config["Smf:CookieFile"] ?? "smf_session.json";
-var enableReplyDemo = bool.TryParse(config["Smf:EnableReplyDemo"], out var r) && r;
+var cookieFileRaw   = config["Smf:CookieFile"] ?? "smf_session.json";
+var cookieFile      = Path.IsPathRooted(cookieFileRaw)
+    ? cookieFileRaw
+    : Path.Combine(AppContext.BaseDirectory, cookieFileRaw);
+var enableReplyDemo       = bool.TryParse(config["Smf:EnableReplyDemo"],       out var r)  && r;
+var enableCreateTopicDemo = bool.TryParse(config["Smf:EnableCreateTopicDemo"], out var ct) && ct;
+var enableLogoutDemo      = bool.TryParse(config["Smf:EnableLogoutDemo"],      out var lo) && lo;
 
 Console.WriteLine($"Connecting to {baseUrl} ...");
 
@@ -32,7 +37,7 @@ try
         {
             await client.GetAllTopicsAsync();
             // Session is valid — produce a minimal artifacts object via login page
-            auth = await client.LoginAsync(username, password);
+            auth = await client.GetArtifactsAsync();
         }
         catch (HttpRequestException)
         {
@@ -52,7 +57,7 @@ catch (Exception ex)
 }
 
 client.SaveCookies(cookieFile);
-Console.WriteLine("[Session] Cookies saved to disk.");
+Console.WriteLine($"[Session] Cookies saved to: {cookieFile}");
 
 Console.WriteLine();
 Console.WriteLine("=== Authentication Artifacts ===");

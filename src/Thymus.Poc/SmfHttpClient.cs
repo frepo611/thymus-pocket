@@ -130,6 +130,12 @@ public sealed class SmfHttpClient : IDisposable
         Console.WriteLine("[SmfHttpClient] Reply posted successfully.");
     }
 
+    public async Task<AuthenticationArtifacts> GetArtifactsAsync()
+    {
+        var html = await GetHtmlAsync();
+        return ExtractAuthenticationArtifacts(html);
+    }
+
     private Task<HttpResponseMessage> GetActionAsync(string action)
         => _http.GetAsync(BuildActionUrl(action));
 
