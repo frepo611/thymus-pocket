@@ -151,6 +151,24 @@ else
         }
     }
 }
+Console.WriteLine();
+Console.WriteLine("=== Create New Topic Demo ===");
+var firstBoard = (await client.GetBoardUrlsAsync()).FirstOrDefault();
+if (!enableCreateTopicDemo)
+{
+    Console.WriteLine("(disabled — set Smf:EnableCreateTopicDemo=true in appsettings.json to enable)");
+}
+else if (firstBoard is null)
+{
+    Console.WriteLine("(no board found — skipping)");
+}
+else
+{
+    Console.WriteLine($"Creating new topic in board: {firstBoard}");
+    var newTopicUrl = await client.CreateTopicAsync(firstBoard, "Test topic from Thymus PoC", "This topic was created automatically by the Thymus PoC.");
+    Console.WriteLine($"New topic URL: {newTopicUrl ?? "(unknown)"}");
+}
+
 
 Console.WriteLine();
 Console.WriteLine("=== Post Reply Demo ===");

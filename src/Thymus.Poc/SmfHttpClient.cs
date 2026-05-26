@@ -108,6 +108,35 @@ public sealed class SmfHttpClient : IDisposable
         return ParseTopic(html);
     }
 
+    public async Task<string?> CreateTopicAsync(string boardUrl, string subject, string message)
+    {
+        var boardParam = ExtractQueryParam(boardUrl, "board")
+            ?? throw new ArgumentException("Could not extract board parameter from URL.", nameof(boardUrl));
+
+        // SMF uses only the numeric board id (drop the .0 page offset if present)
+        var boardId = boardParam.Split('.')[0];
+
+        var newTopicFormUrl = $"index.php?action=post;board={Uri.EscapeDataString(boardId + ".0")}";
+        var formHtml = await _http.GetStringAsync(newTopicFormUrl);
+        var (actionUrl, hiddenFields) = ExtractFormFields(formHtml, "post2");
+
+        var form = new Dictionary<string, string>(hiddenFields, StringComparer.Ordinal)
+        {
+            ["subject"] = subject,
+            ["message"] = message,
+            ["post"]    = "Post",
+        };
+
+        using var response = await PostAsync(actionUrl, form);
+        response.EnsureSuccessStatusCode();
+
+        // SMF redirects to the new topic after a successful post;
+        // the final URL contains the topic id.
+        var topicUrl = response.RequestMessage?.RequestUri?.ToString();
+        Console.WriteLine($"[SmfHttpClient] Topic created. URL: {topicUrl ?? "(unknown)"}");
+        return topicUrl;
+    }
+
     public async Task PostReplyAsync(string topicUrl, string subject, string message)
     {
         var topicParam = ExtractQueryParam(topicUrl, "topic")
@@ -130,6 +159,11 @@ public sealed class SmfHttpClient : IDisposable
         Console.WriteLine("[SmfHttpClient] Reply posted successfully.");
     }
 
+    public async Task<List<string>> GetBoardUrlsAsync()
+    {
+        var html = await GetHtmlAsync();
+        return ParseBoardUrls(html);
+    }
     public async Task<AuthenticationArtifacts> GetArtifactsAsync()
     {
         var html = await GetHtmlAsync();
