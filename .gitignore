@@ -39,3 +39,4 @@ Thumbs.db
 appsettings.*.json
 !appsettings.json
 *.env
+src/Thymus.Poc/appsettings.json
