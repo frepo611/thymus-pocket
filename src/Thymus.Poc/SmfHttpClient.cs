@@ -47,7 +47,7 @@ public sealed class SmfHttpClient : IDisposable
         {
             ["user"] = username,
             ["passwrd"] = password,
-            ["cookielength"] = "-1",
+            ["cookielength"] = "60",
         };
 
         using var response = await PostAsync(actionUrl, form);
@@ -93,6 +93,7 @@ public sealed class SmfHttpClient : IDisposable
 
         foreach (var boardUrl in boardUrls)
         {
+            // Fetch only the first page for each board.
             var boardHtml = await _http.GetStringAsync(boardUrl);
             results.AddRange(ParseThreadList(boardHtml));
         }
@@ -470,10 +471,33 @@ public sealed class SmfHttpClient : IDisposable
     {
         var document = ParseDocument(html);
 
-        return document.QuerySelectorAll("a.subject[href*='board=']")
+        // Board links are <a href="...?board=6.0">BoardName</a> without the "subject" class
+        // Filter out action=unread links (which are for new posts) and keep only board view links
+        return document.QuerySelectorAll("a[href*='board=']")
+            .Select(link => link.GetAttribute("href"))
+            .Where(href => !string.IsNullOrWhiteSpace(href) && !href.Contains("action=unread", StringComparison.OrdinalIgnoreCase))
+            .Select(href => href!)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private static List<string> ParseBoardPaginationUrls(string html, string boardId)
+    {
+        var document = ParseDocument(html);
+
+        return document.QuerySelectorAll(".pagelinks a[href*='board=']")
             .Select(link => link.GetAttribute("href"))
             .Where(href => !string.IsNullOrWhiteSpace(href))
             .Select(href => href!)
+            .Where(href =>
+            {
+                var boardParam = ExtractQueryParam(href, "board");
+                if (string.IsNullOrWhiteSpace(boardParam))
+                    return false;
+
+                var pageBoardId = boardParam.Split('.')[0];
+                return string.Equals(pageBoardId, boardId, StringComparison.OrdinalIgnoreCase);
+            })
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
     }
