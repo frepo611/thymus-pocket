@@ -40,3 +40,5 @@ appsettings.*.json
 !appsettings.json
 *.env
 src/Thymus.Poc/appsettings.json
+.vscode/launch.json
+.vscode/tasks.json
