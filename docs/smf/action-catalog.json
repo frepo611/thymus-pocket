@@ -1,0 +1,191 @@
+{
+  "metadata": {
+    "source": "smf_2-0-19_install/index.php",
+    "dispatcherFunction": "smf_main",
+    "smfVersion": "2.0.19",
+    "extractedDate": "2026-05-28",
+    "notes": [
+      "This catalog is extracted from the official SMF 2.0.19 install package.",
+      "This matches the production forum at thymus.se.",
+      "Actions can be extended at runtime via the integrate_actions hook.",
+      "Do NOT use 2.1.x action names against this version — there are breaking differences (see versionDiffs below)."
+    ]
+  },
+  "specialRouting": {
+    "emptyAction": [
+      "BoardIndex when board and topic are empty",
+      "MessageIndex when board is set and topic is empty",
+      "Display when topic is set"
+    ],
+    "maintenanceModeGuestAllowedActions": ["login2", "logout"],
+    "guestAccessDisabledAllowedActions": [
+      "coppa",
+      "login",
+      "login2",
+      "register",
+      "register2",
+      "reminder",
+      "activate",
+      "help",
+      "smstats",
+      "mailq",
+      "verificationcode",
+      "openidreturn"
+    ]
+  },
+  "versionDiffs": {
+    "description": "Key differences between 2.0.19 (this catalog) and 2.1.0. Do not assume 2.1.0 actions exist in production.",
+    "onlyIn_2_0_19": [
+      "collapse",
+      "display",
+      "emailuser",
+      "im",
+      "jseditor",
+      "modifykarma",
+      "notify",
+      "openidreturn",
+      "register",
+      "register2",
+      "sendtopic",
+      "spellcheck",
+      "about:mozilla"
+    ],
+    "onlyIn_2_1_0": [
+      "likes",
+      "logintfa",
+      "notifytopic",
+      "sendactivation",
+      "signup",
+      "signup2",
+      "uploadAttach"
+    ],
+    "differentImplementation": {
+      "dlattach": {
+        "2.0.19": { "file": "Display.php", "function": "Download" },
+        "2.1.0": { "file": "ShowAttachments.php", "function": "showAttachment" }
+      },
+      "lock": {
+        "2.0.19": { "file": "LockTopic.php", "function": "LockTopic" },
+        "2.1.0": { "file": "Topic.php", "function": "LockTopic" }
+      },
+      "reporttm": {
+        "2.0.19": { "file": "SendTopic.php", "function": "ReportToModerator" },
+        "2.1.0": { "file": "ReportToMod.php", "function": "ReportToModerator" }
+      },
+      "sticky": {
+        "2.0.19": { "file": "LockTopic.php", "function": "Sticky" },
+        "2.1.0": { "file": "Topic.php", "function": "Sticky" }
+      },
+      "about:unknown": {
+        "2.0.19": { "file": "Karma.php", "function": "BookOfUnknown" },
+        "2.1.0": { "file": "Likes.php", "function": "BookOfUnknown" }
+      }
+    }
+  },
+  "actions": {
+    "agreement": { "file": "Agreement.php", "function": "Agreement" },
+    "acceptagreement": {
+      "file": "Agreement.php",
+      "function": "AcceptAgreement"
+    },
+    "activate": { "file": "Register.php", "function": "Activate" },
+    "admin": { "file": "Admin.php", "function": "AdminMain" },
+    "announce": { "file": "Post.php", "function": "AnnounceTopic" },
+    "attachapprove": {
+      "file": "ManageAttachments.php",
+      "function": "ApproveAttach"
+    },
+    "buddy": { "file": "Subs-Members.php", "function": "BuddyListToggle" },
+    "calendar": { "file": "Calendar.php", "function": "CalendarMain" },
+    "clock": { "file": "Calendar.php", "function": "clock" },
+    "collapse": { "file": "BoardIndex.php", "function": "CollapseCategory" },
+    "coppa": { "file": "Register.php", "function": "CoppaForm" },
+    "credits": { "file": "Who.php", "function": "Credits" },
+    "deletemsg": { "file": "RemoveTopic.php", "function": "DeleteMessage" },
+    "display": { "file": "Display.php", "function": "Display" },
+    "dlattach": { "file": "Display.php", "function": "Download" },
+    "editpoll": { "file": "Poll.php", "function": "EditPoll" },
+    "editpoll2": { "file": "Poll.php", "function": "EditPoll2" },
+    "emailuser": { "file": "SendTopic.php", "function": "EmailUser" },
+    "findmember": { "file": "Subs-Auth.php", "function": "JSMembers" },
+    "groups": { "file": "Groups.php", "function": "Groups" },
+    "help": { "file": "Help.php", "function": "ShowHelp" },
+    "helpadmin": { "file": "Help.php", "function": "ShowAdminHelp" },
+    "im": { "file": "PersonalMessage.php", "function": "MessageMain" },
+    "jseditor": { "file": "Subs-Editor.php", "function": "EditorMain" },
+    "jsmodify": { "file": "Post.php", "function": "JavaScriptModify" },
+    "jsoption": { "file": "Themes.php", "function": "SetJavaScript" },
+    "lock": { "file": "LockTopic.php", "function": "LockTopic" },
+    "lockvoting": { "file": "Poll.php", "function": "LockVoting" },
+    "login": { "file": "LogInOut.php", "function": "Login" },
+    "login2": { "file": "LogInOut.php", "function": "Login2" },
+    "logout": { "file": "LogInOut.php", "function": "Logout" },
+    "markasread": { "file": "Subs-Boards.php", "function": "MarkRead" },
+    "mergetopics": { "file": "SplitTopics.php", "function": "MergeTopics" },
+    "mlist": { "file": "Memberlist.php", "function": "Memberlist" },
+    "moderate": {
+      "file": "ModerationCenter.php",
+      "function": "ModerationMain"
+    },
+    "modifycat": { "file": "ManageBoards.php", "function": "ModifyCat" },
+    "modifykarma": { "file": "Karma.php", "function": "ModifyKarma" },
+    "movetopic": { "file": "MoveTopic.php", "function": "MoveTopic" },
+    "movetopic2": { "file": "MoveTopic.php", "function": "MoveTopic2" },
+    "notify": { "file": "Notify.php", "function": "Notify" },
+    "notifyboard": { "file": "Notify.php", "function": "BoardNotify" },
+    "notifyannouncements": {
+      "file": "Notify.php",
+      "function": "AnnouncementsNotify"
+    },
+    "openidreturn": {
+      "file": "Subs-OpenID.php",
+      "function": "smf_openID_return"
+    },
+    "pm": { "file": "PersonalMessage.php", "function": "MessageMain" },
+    "post": { "file": "Post.php", "function": "Post" },
+    "post2": { "file": "Post.php", "function": "Post2" },
+    "printpage": { "file": "Printpage.php", "function": "PrintTopic" },
+    "profile": { "file": "Profile.php", "function": "ModifyProfile" },
+    "quotefast": { "file": "Post.php", "function": "QuoteFast" },
+    "quickmod": { "file": "MessageIndex.php", "function": "QuickModeration" },
+    "quickmod2": {
+      "file": "Display.php",
+      "function": "QuickInTopicModeration"
+    },
+    "recent": { "file": "Recent.php", "function": "RecentPosts" },
+    "register": { "file": "Register.php", "function": "Register" },
+    "register2": { "file": "Register.php", "function": "Register2" },
+    "reminder": { "file": "Reminder.php", "function": "RemindMe" },
+    "removepoll": { "file": "Poll.php", "function": "RemovePoll" },
+    "removetopic2": { "file": "RemoveTopic.php", "function": "RemoveTopic2" },
+    "reporttm": { "file": "SendTopic.php", "function": "ReportToModerator" },
+    "requestmembers": { "file": "Subs-Auth.php", "function": "RequestMembers" },
+    "restoretopic": { "file": "RemoveTopic.php", "function": "RestoreTopic" },
+    "search": { "file": "Search.php", "function": "PlushSearch1" },
+    "search2": { "file": "Search.php", "function": "PlushSearch2" },
+    "sendtopic": { "file": "SendTopic.php", "function": "EmailUser" },
+    "smstats": { "file": "Stats.php", "function": "SMStats" },
+    "suggest": { "file": "Subs-Editor.php", "function": "AutoSuggestHandler" },
+    "spellcheck": { "file": "Subs-Post.php", "function": "SpellCheck" },
+    "splittopics": { "file": "SplitTopics.php", "function": "SplitTopics" },
+    "stats": { "file": "Stats.php", "function": "DisplayStats" },
+    "sticky": { "file": "LockTopic.php", "function": "Sticky" },
+    "theme": { "file": "Themes.php", "function": "ThemesMain" },
+    "trackip": { "file": "Profile-View.php", "function": "trackIP" },
+    "about:mozilla": { "file": "Karma.php", "function": "BookOfUnknown" },
+    "about:unknown": { "file": "Karma.php", "function": "BookOfUnknown" },
+    "unread": { "file": "Recent.php", "function": "UnreadTopics" },
+    "unreadreplies": { "file": "Recent.php", "function": "UnreadTopics" },
+    "verificationcode": {
+      "file": "Register.php",
+      "function": "VerificationCode"
+    },
+    "viewprofile": { "file": "Profile.php", "function": "ModifyProfile" },
+    "vote": { "file": "Poll.php", "function": "Vote" },
+    "viewquery": { "file": "ViewQuery.php", "function": "ViewQuery" },
+    "viewsmfile": { "file": "Admin.php", "function": "DisplayAdminFile" },
+    "who": { "file": "Who.php", "function": "Who" },
+    ".xml": { "file": "News.php", "function": "ShowXmlFeed" },
+    "xmlhttp": { "file": "Xml.php", "function": "XMLhttpMain" }
+  }
+}
