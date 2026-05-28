@@ -1,6 +1,6 @@
 ﻿using Microsoft.Extensions.Configuration;
-using Thymus.Poc;
-using Thymus.Poc.Models;
+using Thymus.SmfAdapter;
+using Thymus.SmfAdapter.Models;
 
 var config = new ConfigurationBuilder()
     .SetBasePath(AppContext.BaseDirectory)

@@ -1,4 +1,4 @@
-namespace Thymus.Poc.Models;
+namespace Thymus.SmfAdapter.Models;
 
 public sealed record AuthenticationArtifacts(
     CookieArtifact? MainLoginCookie,

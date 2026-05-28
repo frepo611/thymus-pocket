@@ -1,6 +1,6 @@
-namespace Thymus.Poc.Models;
+namespace Thymus.SmfAdapter.Models;
 
-public record PostContent(
+public sealed record PostContent(
     int MessageId,
     string Author,
     string Body,

@@ -1,5 +1,10 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/Thymus.Bff/Thymus.Bff.csproj" />
     <Project Path="src/Thymus.Poc/Thymus.Poc.csproj" />
+    <Project Path="src/Thymus.SmfAdapter/Thymus.SmfAdapter.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Thymus.SmfAdapter.Tests/Thymus.SmfAdapter.Tests.csproj" />
   </Folder>
 </Solution>
