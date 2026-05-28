@@ -3,8 +3,10 @@
     <Project Path="src/Thymus.Bff/Thymus.Bff.csproj" />
     <Project Path="src/Thymus.Poc/Thymus.Poc.csproj" />
     <Project Path="src/Thymus.SmfAdapter/Thymus.SmfAdapter.csproj" />
+    <Project Path="src/Thymus.Web/Thymus.Web.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Thymus.SmfAdapter.Tests/Thymus.SmfAdapter.Tests.csproj" />
+    <Project Path="tests/Thymus.Web.Tests/Thymus.Web.Tests.csproj" />
   </Folder>
 </Solution>
