@@ -42,3 +42,7 @@ appsettings.*.json
 src/Thymus.Poc/appsettings.json
 .vscode/launch.json
 .vscode/tasks.json
+
+# Other
+
+smf_2-0-19_install/
