@@ -1,6 +1,6 @@
 namespace Thymus.Contracts;
 
-public sealed record BoardDto(string Name, string Url);
+public sealed record BoardDto(string Name, string Url, string Category);
 
 public sealed record ThreadSummaryDto(
     string Id,

@@ -150,7 +150,7 @@ public sealed class SmfHttpClient : IDisposable
         response.EnsureSuccessStatusCode();
     }
 
-    public async Task<List<(string Name, string Url)>> GetBoardsAsync()
+    public async Task<List<(string Category, string Name, string Url)>> GetBoardsAsync()
     {
         var html = await GetHtmlAsync();
         return SmfHtmlParser.ParseBoards(html);

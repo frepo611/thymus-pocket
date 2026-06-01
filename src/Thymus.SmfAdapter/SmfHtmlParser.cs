@@ -87,24 +87,95 @@ public static class SmfHtmlParser
             .ToList();
     }
 
-    public static List<(string Name, string Url)> ParseBoards(string html)
+    public static List<(string Category, string Name, string Url)> ParseBoards(string html)
     {
         var document = ParseDocument(html);
+        var results = new List<(string Category, string Name, string Url)>();
+        var seenUrls = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        return document.QuerySelectorAll("a[href*='board=']") 
-            .Where(link =>
+        // 1) Prefer canonical SMF board index structure: category header tbody + category boards tbody.
+        foreach (var categoryBody in document.QuerySelectorAll("tbody[id$='_boards']"))
+        {
+            var categoryId = categoryBody.GetAttribute("id")?.Replace("_boards", "", StringComparison.Ordinal);
+            var categoryName = string.Empty;
+            if (!string.IsNullOrWhiteSpace(categoryId))
+            {
+                var categoryHeader = document.QuerySelector($"tbody#{categoryId} h3.catbg");
+                categoryName = CleanCategoryText(categoryHeader?.TextContent);
+            }
+
+            foreach (var boardLink in categoryBody.QuerySelectorAll("a[href*='board=']"))
+            {
+                var href = boardLink.GetAttribute("href");
+                if (string.IsNullOrWhiteSpace(href))
+                    continue;
+                if (ExtractQueryParam(href, "board") is null)
+                    continue;
+                if (href.Contains("action=unread", StringComparison.OrdinalIgnoreCase))
+                    continue;
+                if (!seenUrls.Add(href))
+                    continue;
+
+                var name = NormalizeWhitespace(boardLink.TextContent);
+                if (!string.IsNullOrWhiteSpace(name))
+                    results.Add((categoryName, name, href));
+            }
+        }
+
+        if (results.Count > 0)
+            return results;
+
+        // 2) Fallback for custom themes: track heading text in DOM order.
+        var currentCategory = string.Empty;
+        foreach (var node in document.QuerySelectorAll("h1, h2, h3, h4, h5, h6, a[href*='board=']"))
+        {
+            if (!node.Matches("a[href*='board=']"))
+            {
+                // Ignore headings that are themselves board containers.
+                if (node.QuerySelector("a[href*='board=']") is not null)
+                    continue;
+
+                var headerText = CleanCategoryText(node.TextContent);
+                if (!string.IsNullOrWhiteSpace(headerText))
+                    currentCategory = headerText;
+                continue;
+            }
+
+            var href = node.GetAttribute("href");
+            if (string.IsNullOrWhiteSpace(href))
+                continue;
+            if (ExtractQueryParam(href, "board") is null)
+                continue;
+            if (href.Contains("action=unread", StringComparison.OrdinalIgnoreCase))
+                continue;
+            if (!seenUrls.Add(href))
+                continue;
+
+            var name = NormalizeWhitespace(node.TextContent);
+            if (!string.IsNullOrWhiteSpace(name))
+                results.Add((currentCategory, name, href));
+        }
+
+        // 3) Last-resort fallback: board names only.
+        if (results.Count == 0)
+        {
+            foreach (var link in document.QuerySelectorAll("a[href*='board=']"))
             {
                 var href = link.GetAttribute("href");
-                return !string.IsNullOrWhiteSpace(href)
-                    && !href.Contains("action=unread", StringComparison.OrdinalIgnoreCase);
-            })
-            .Select(link => (
-                Name: NormalizeWhitespace(link.TextContent),
-                Url: link.GetAttribute("href")!
-            ))
-            .Where(b => !string.IsNullOrWhiteSpace(b.Name))
-            .DistinctBy(b => b.Url, StringComparer.OrdinalIgnoreCase)
-            .ToList();
+                if (string.IsNullOrWhiteSpace(href))
+                    continue;
+                if (href.Contains("action=unread", StringComparison.OrdinalIgnoreCase))
+                    continue;
+                if (!seenUrls.Add(href))
+                    continue;
+
+                var name = NormalizeWhitespace(link.TextContent);
+                if (!string.IsNullOrWhiteSpace(name))
+                    results.Add((string.Empty, name, href));
+            }
+        }
+
+        return results;
     }
 
     public static List<PostContent> ParseTopic(string html)
@@ -176,5 +247,19 @@ public static class SmfHtmlParser
             return string.Empty;
 
         return string.Join(" ", value.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+    }
+
+    static string CleanCategoryText(string? value)
+    {
+        var text = NormalizeWhitespace(value);
+        if (string.IsNullOrWhiteSpace(text))
+            return string.Empty;
+
+        text = text
+            .Replace("Unread Posts", string.Empty, StringComparison.OrdinalIgnoreCase)
+            .Replace("Unread", string.Empty, StringComparison.OrdinalIgnoreCase)
+            .Replace("Posts", string.Empty, StringComparison.OrdinalIgnoreCase);
+
+        return NormalizeWhitespace(text);
     }
 }

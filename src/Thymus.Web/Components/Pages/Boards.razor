@@ -13,22 +13,28 @@ else if (_unauthorized)
 {
     <p>Du är inte inloggad. <a href="/login">Logga in</a></p>
 }
-else if (_boards is not null)
+else if (_categories is not null)
 {
-    <ul class="list-group">
-        @foreach (var board in _boards)
-        {
-            <li class="list-group-item">
-                <a href="@board.Url">@board.Name</a>
-            </li>
-        }
-    </ul>
+    foreach (var category in _categories)
+    {
+        <div class="mb-4">
+            <h2 class="h5 border-bottom pb-1">@category.Key</h2>
+            <ul class="list-group list-group-flush">
+                @foreach (var board in category)
+                {
+                    <li class="list-group-item">
+                        <a href="@board.Url">@board.Name</a>
+                    </li>
+                }
+            </ul>
+        </div>
+    }
 }
 
 @code {
     private bool _loading = true;
     private bool _unauthorized;
-    private IReadOnlyList<BoardDto>? _boards;
+    private IEnumerable<IGrouping<string, BoardDto>>? _categories;
 
     protected override async Task OnInitializedAsync()
     {
@@ -37,7 +43,10 @@ else if (_boards is not null)
         if (boards is null)
             _unauthorized = true;
         else
-            _boards = boards;
+            _categories = boards
+                .GroupBy(
+                    b => string.IsNullOrWhiteSpace(b.Category) ? "Okategoriserat" : b.Category,
+                    StringComparer.Ordinal);
 
         _loading = false;
     }

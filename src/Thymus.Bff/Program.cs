@@ -100,7 +100,7 @@ app.MapGet("/api/boards", async Task<Results<Ok<IReadOnlyList<BoardDto>>, Unauth
     }
 
     var boards = await client.GetBoardsAsync();
-    var results = boards.Select(b => new BoardDto(b.Name, b.Url)).ToList();
+    var results = boards.Select(b => new BoardDto(b.Name, b.Url, b.Category)).ToList();
 
     TouchSession(session);
     return TypedResults.Ok<IReadOnlyList<BoardDto>>(results);
