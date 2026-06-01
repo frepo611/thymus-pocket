@@ -235,6 +235,38 @@ public static class SmfHtmlParser
         return null;
     }
 
+    public static int? GetNextBoardStart(string html, string boardId, int currentStart)
+    {
+        var document = ParseDocument(html);
+        var nextStarts = new List<int>();
+
+        foreach (var link in document.QuerySelectorAll("a[href*='board=']"))
+        {
+            var href = link.GetAttribute("href");
+            if (string.IsNullOrWhiteSpace(href))
+                continue;
+
+            var boardParam = ExtractQueryParam(href, "board");
+            if (string.IsNullOrWhiteSpace(boardParam))
+                continue;
+
+            var parts = boardParam.Split('.');
+            if (parts.Length < 2)
+                continue;
+
+            if (!string.Equals(parts[0], boardId, StringComparison.Ordinal))
+                continue;
+
+            if (!int.TryParse(parts[1], out var start))
+                continue;
+
+            if (start > currentStart)
+                nextStarts.Add(start);
+        }
+
+        return nextStarts.Count == 0 ? null : nextStarts.Min();
+    }
+
     static IDocument ParseDocument(string html)
     {
         var parser = new HtmlParser();

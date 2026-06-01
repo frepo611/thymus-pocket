@@ -59,6 +59,20 @@ public sealed class BffApiClient : IDisposable
         return await response.Content.ReadFromJsonAsync<IReadOnlyList<ThreadSummaryDto>>();
     }
 
+    public async Task<TopicsPageDto?> GetTopicsPageAsync(string boardId, int start)
+    {
+        using var request = new HttpRequestMessage(
+            HttpMethod.Get,
+            $"/api/topics?boardId={Uri.EscapeDataString(boardId)}&start={start}");
+        ForwardSessionCookieToBff(request);
+
+        using var response = await _http.SendAsync(request);
+        if (!response.IsSuccessStatusCode)
+            return null;
+
+        return await response.Content.ReadFromJsonAsync<TopicsPageDto>();
+    }
+
     public async Task<bool> LogoutAsync()
     {
         using var request = new HttpRequestMessage(HttpMethod.Post, "/api/auth/logout");

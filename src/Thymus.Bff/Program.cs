@@ -100,10 +100,62 @@ app.MapGet("/api/boards", async Task<Results<Ok<IReadOnlyList<BoardDto>>, Unauth
     }
 
     var boards = await client.GetBoardsAsync();
-    var results = boards.Select(b => new BoardDto(b.Name, b.Url, b.Category)).ToList();
+    var results = boards
+        .Select(b => new
+        {
+            Id = GetBoardIdFromBoardUrl(b.Url),
+            b.Name,
+            b.Url,
+            b.Category,
+        })
+        .Where(b => !string.IsNullOrWhiteSpace(b.Id))
+        .Select(b => new BoardDto(b.Id!, b.Name, b.Url, b.Category))
+        .ToList();
 
     TouchSession(session);
     return TypedResults.Ok<IReadOnlyList<BoardDto>>(results);
+});
+
+app.MapGet("/api/topics", async Task<Results<Ok<TopicsPageDto>, BadRequest<string>, NotFound<string>, UnauthorizedHttpResult>> (
+    string boardId,
+    int start,
+    HttpContext httpContext) =>
+{
+    if (string.IsNullOrWhiteSpace(boardId))
+        return TypedResults.BadRequest("boardId is required.");
+
+    if (start < 0)
+        return TypedResults.BadRequest("start must be >= 0.");
+
+    var session = TryGetSession(httpContext, sessions, sessionCookieName, sessionStoreDirectory);
+    if (session is null)
+        return TypedResults.Unauthorized();
+
+    using var client = new SmfHttpClient(smfBaseUrl);
+    if (!client.TryLoadCookies(session.CookieFilePath))
+    {
+        RemoveSession(httpContext, sessions, sessionCookieName, sessionStoreDirectory);
+        return TypedResults.Unauthorized();
+    }
+
+    var boards = await client.GetBoardsAsync();
+    var board = boards.FirstOrDefault(b => string.Equals(GetBoardIdFromBoardUrl(b.Url), boardId, StringComparison.Ordinal));
+    if (string.IsNullOrWhiteSpace(board.Url))
+        return TypedResults.NotFound("Board not found.");
+
+    var page = await client.GetBoardTopicsPageAsync(board.Url, start);
+    var items = page.Items
+        .Select(topic => new ThreadSummaryDto(
+            Id: BuildThreadId(topic.Url),
+            Title: topic.Title,
+            Board: topic.Board,
+            Url: topic.Url,
+            LastPostBy: topic.LastPostBy,
+            LastPostAt: topic.LastPostAt))
+        .ToList();
+
+    TouchSession(session);
+    return TypedResults.Ok(new TopicsPageDto(items, page.NextStart));
 });
 
 app.MapGet("/api/threads", async Task<Results<Ok<IReadOnlyList<ThreadSummaryDto>>, UnauthorizedHttpResult>> (HttpContext httpContext) =>
@@ -313,6 +365,15 @@ static string BuildThreadId(string url)
     }
 
     return topicValue.Split('.')[0];
+}
+
+static string? GetBoardIdFromBoardUrl(string url)
+{
+    var boardValue = SmfHtmlParser.ExtractQueryParam(url, "board");
+    if (string.IsNullOrWhiteSpace(boardValue))
+        return null;
+
+    return boardValue.Split('.')[0];
 }
 
 sealed class SessionState

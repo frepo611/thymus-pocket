@@ -156,6 +156,20 @@ public sealed class SmfHttpClient : IDisposable
         return SmfHtmlParser.ParseBoards(html);
     }
 
+    public async Task<(List<ThreadSummary> Items, int? NextStart)> GetBoardTopicsPageAsync(string boardUrl, int start)
+    {
+        var boardParam = SmfHtmlParser.ExtractQueryParam(boardUrl, "board")
+            ?? throw new ArgumentException("Could not extract board parameter from URL.", nameof(boardUrl));
+
+        var boardId = boardParam.Split('.')[0];
+        var boardPageUrl = $"index.php?board={Uri.EscapeDataString(boardId + "." + start)}";
+        var html = await _http.GetStringAsync(boardPageUrl);
+
+        var items = SmfHtmlParser.ParseThreadList(html);
+        var nextStart = SmfHtmlParser.GetNextBoardStart(html, boardId, start);
+        return (items, nextStart);
+    }
+
     public async Task<List<string>> GetBoardUrlsAsync()
     {
         var html = await GetHtmlAsync();

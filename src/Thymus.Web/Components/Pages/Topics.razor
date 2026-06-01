@@ -1,0 +1,104 @@
+@page "/topics/{BoardId}"
+@inject Thymus.Web.Services.BffApiClient ApiClient
+
+<PageTitle>Topics</PageTitle>
+
+<h1>Topics</h1>
+
+@if (_loading)
+{
+    <p>Laddar...</p>
+}
+else if (_unauthorized)
+{
+    <p>Du är inte inloggad. <a href="/login">Logga in</a></p>
+}
+else
+{
+    <p><a href="/boards">Tillbaka till boards</a></p>
+
+    @if (_topics.Count == 0)
+    {
+        <p>Inga topics hittades.</p>
+    }
+    else
+    {
+        <table class="table table-sm table-hover">
+            <thead>
+                <tr>
+                    <th>Titel</th>
+                    <th>Senast av</th>
+                    <th>Senast</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var topic in _topics)
+                {
+                    <tr>
+                        <td><a href="@topic.Url" target="_blank">@topic.Title</a></td>
+                        <td>@topic.LastPostBy</td>
+                        <td>@topic.LastPostAt</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+
+    @if (_nextStart is not null)
+    {
+        <button class="btn btn-outline-primary" @onclick="LoadMoreAsync" disabled="@_loadingMore">
+            @(_loadingMore ? "Laddar..." : "Ladda fler")
+        </button>
+    }
+}
+
+@code {
+    [Parameter]
+    public string BoardId { get; set; } = string.Empty;
+
+    private readonly List<ThreadSummaryDto> _topics = new();
+    private bool _loading = true;
+    private bool _loadingMore;
+    private bool _unauthorized;
+    private int? _nextStart;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPageAsync(start: 0, reset: true);
+        _loading = false;
+    }
+
+    private async Task LoadMoreAsync()
+    {
+        if (_nextStart is null)
+            return;
+
+        _loadingMore = true;
+        try
+        {
+            await LoadPageAsync(_nextStart.Value, reset: false);
+        }
+        finally
+        {
+            _loadingMore = false;
+        }
+    }
+
+    private async Task LoadPageAsync(int start, bool reset)
+    {
+        var page = await ApiClient.GetTopicsPageAsync(BoardId, start);
+
+        if (page is null)
+        {
+            _unauthorized = true;
+            return;
+        }
+
+        _unauthorized = false;
+        if (reset)
+            _topics.Clear();
+
+        _topics.AddRange(page.Items);
+        _nextStart = page.NextStart;
+    }
+}

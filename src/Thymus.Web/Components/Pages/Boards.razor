@@ -23,7 +23,7 @@ else if (_categories is not null)
                 @foreach (var board in category)
                 {
                     <li class="list-group-item">
-                        <a href="@board.Url">@board.Name</a>
+                        <a href="@($"/topics/{board.Id}")">@board.Name</a>
                     </li>
                 }
             </ul>
