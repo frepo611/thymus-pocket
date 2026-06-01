@@ -7,4 +7,8 @@
     <BlazorDisableThrowNavigationException>true</BlazorDisableThrowNavigationException>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\Thymus.Contracts\Thymus.Contracts.csproj" />
+  </ItemGroup>
+
 </Project>

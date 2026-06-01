@@ -1,25 +1,11 @@
+global using BoardDto = Thymus.Contracts.BoardDto;
+global using ThreadSummaryDto = Thymus.Contracts.ThreadSummaryDto;
+global using PostDto = Thymus.Contracts.PostDto;
+global using ThreadDetailsDto = Thymus.Contracts.ThreadDetailsDto;
 namespace Thymus.Bff.Contracts;
 
+// BFF-internal request types (not shared with clients)
 public sealed record LoginRequest(string Username, string Password);
-
 public sealed record ReplyRequestDto(string Subject, string Message);
 
-public sealed record ThreadSummaryDto(
-    string Id,
-    string Title,
-    string Board,
-    string Url,
-    string? LastPostBy,
-    string? LastPostAt);
-
-public sealed record PostDto(
-    int MessageId,
-    string Author,
-    string Body,
-    DateTimeOffset? PostedAt);
-
-public sealed record ThreadDetailsDto(
-    string Id,
-    string Title,
-    string Url,
-    IReadOnlyList<PostDto> Posts);
+// Re-export shared contract types for use within BFF

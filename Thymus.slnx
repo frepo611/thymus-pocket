@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/Thymus.Bff/Thymus.Bff.csproj" />
+    <Project Path="src/Thymus.Contracts/Thymus.Contracts.csproj" />
     <Project Path="src/Thymus.Poc/Thymus.Poc.csproj" />
     <Project Path="src/Thymus.SmfAdapter/Thymus.SmfAdapter.csproj" />
     <Project Path="src/Thymus.Web/Thymus.Web.csproj" />
