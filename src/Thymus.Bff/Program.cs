@@ -86,6 +86,26 @@ app.MapPost("/api/auth/logout", async Task<Results<Ok, UnauthorizedHttpResult>> 
     return TypedResults.Ok();
 });
 
+app.MapGet("/api/boards", async Task<Results<Ok<IReadOnlyList<BoardDto>>, UnauthorizedHttpResult>> (HttpContext httpContext) =>
+{
+    var session = TryGetSession(httpContext, sessions, sessionCookieName, sessionStoreDirectory);
+    if (session is null)
+        return TypedResults.Unauthorized();
+
+    using var client = new SmfHttpClient(smfBaseUrl);
+    if (!client.TryLoadCookies(session.CookieFilePath))
+    {
+        RemoveSession(httpContext, sessions, sessionCookieName, sessionStoreDirectory);
+        return TypedResults.Unauthorized();
+    }
+
+    var boards = await client.GetBoardsAsync();
+    var results = boards.Select(b => new BoardDto(b.Name, b.Url)).ToList();
+
+    TouchSession(session);
+    return TypedResults.Ok<IReadOnlyList<BoardDto>>(results);
+});
+
 app.MapGet("/api/threads", async Task<Results<Ok<IReadOnlyList<ThreadSummaryDto>>, UnauthorizedHttpResult>> (HttpContext httpContext) =>
 {
     var session = TryGetSession(httpContext, sessions, sessionCookieName, sessionStoreDirectory);
