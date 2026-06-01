@@ -1,0 +1,70 @@
+@page "/login"
+@inject Thymus.Web.Services.BffApiClient ApiClient
+@inject NavigationManager Navigation
+
+<PageTitle>Logga in</PageTitle>
+
+<h1>Logga in</h1>
+
+<p>Ange dina SMF-uppgifter. Inloggning sker via BFF.</p>
+
+<EditForm Model="_loginModel" OnSubmit="HandleSubmitAsync">
+    <div class="mb-3">
+        <label class="form-label" for="username">Anvandarnamn</label>
+        <InputText id="username" class="form-control" @bind-Value="_username" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label" for="password">Losenord</label>
+        <InputText id="password" type="password" class="form-control" @bind-Value="_password" />
+    </div>
+
+    <button class="btn btn-primary" type="submit" disabled="@_isBusy">
+        @(_isBusy ? "Loggar in..." : "Logga in")
+    </button>
+</EditForm>
+
+@if (!string.IsNullOrWhiteSpace(_error))
+{
+    <div class="alert alert-danger mt-3" role="alert">@_error</div>
+}
+
+@code {
+    private readonly object _loginModel = new();
+    private string _username = string.Empty;
+    private string _password = string.Empty;
+    private bool _isBusy;
+    private string? _error;
+
+    private async Task HandleSubmitAsync(EditContext _)
+    {
+        _error = null;
+
+        if (string.IsNullOrWhiteSpace(_username) || string.IsNullOrWhiteSpace(_password))
+        {
+            _error = "Anvandarnamn och losenord maste fyllas i.";
+            return;
+        }
+
+        _isBusy = true;
+        try
+        {
+            var loginOk = await ApiClient.LoginAsync(_username, _password);
+            if (!loginOk)
+            {
+                _error = "Inloggningen misslyckades.";
+                return;
+            }
+
+            Navigation.NavigateTo("/");
+        }
+        catch (Exception ex)
+        {
+            _error = $"Ett fel uppstod vid inloggning: {ex.Message}";
+        }
+        finally
+        {
+            _isBusy = false;
+        }
+    }
+}

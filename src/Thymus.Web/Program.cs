@@ -1,10 +1,18 @@
 using Thymus.Web.Components;
+using Thymus.Web.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
+
+builder.Services.AddScoped<BffApiClient>(sp =>
+{
+    var configuration = sp.GetRequiredService<IConfiguration>();
+    var baseUrl = configuration["Bff:BaseUrl"] ?? "https://localhost:5001";
+    return new BffApiClient(baseUrl);
+});
 
 var app = builder.Build();
 
