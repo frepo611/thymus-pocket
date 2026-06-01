@@ -35,6 +35,21 @@ public sealed class BffApiClient : IDisposable
         return response.IsSuccessStatusCode;
     }
 
+    public async Task<bool> LogoutAsync()
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/api/auth/logout");
+
+        ForwardSessionCookieToBff(request);
+
+        using var response = await _http.SendAsync(request);
+        ReflectSessionCookieToBrowser(response);
+
+        // Ensure browser cookie is cleared locally even if BFF does not emit Set-Cookie on unauthorized.
+        DeleteSessionCookieFromBrowser();
+
+        return response.IsSuccessStatusCode;
+    }
+
     private void ForwardSessionCookieToBff(HttpRequestMessage request)
     {
         var context = _httpContextAccessor.HttpContext;
@@ -73,6 +88,15 @@ public sealed class BffApiClient : IDisposable
 
             return;
         }
+    }
+
+    private void DeleteSessionCookieFromBrowser()
+    {
+        var context = _httpContextAccessor.HttpContext;
+        if (context is null)
+            return;
+
+        context.Response.Cookies.Delete(SessionCookieName);
     }
 
     private static bool TryExtractCookieValue(string setCookieHeader, string cookieName, out string value)

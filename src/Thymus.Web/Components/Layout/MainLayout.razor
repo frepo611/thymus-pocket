@@ -1,4 +1,6 @@
 ﻿@inherits LayoutComponentBase
+@inject Thymus.Web.Services.BffApiClient ApiClient
+@inject NavigationManager Navigation
 
 <div class="page">
     <div class="sidebar">
@@ -8,13 +10,40 @@
     <main>
         <div class="top-row px-4">
             <a href="https://learn.microsoft.com/aspnet/core/" target="_blank">About</a>
+            <EditForm FormName="layout-logout" Model="_logoutModel" OnSubmit="HandleLogoutAsync" method="post" class="ms-auto">
+                <button type="submit" class="btn btn-sm btn-outline-secondary">Logga ut</button>
+            </EditForm>
         </div>
 
         <article class="content px-4">
+            @if (!string.IsNullOrWhiteSpace(_error))
+            {
+                <div class="alert alert-danger mt-3" role="alert">@_error</div>
+            }
+
             @Body
         </article>
     </main>
 </div>
+
+@code {
+    private readonly object _logoutModel = new();
+    private string? _error;
+
+    private async Task HandleLogoutAsync(EditContext _)
+    {
+        _error = null;
+
+        var ok = await ApiClient.LogoutAsync();
+        if (!ok)
+        {
+            _error = "Utloggningen misslyckades.";
+            return;
+        }
+
+        Navigation.NavigateTo("/login");
+    }
+}
 
 <div id="blazor-error-ui" data-nosnippet>
     An unhandled error has occurred.
