@@ -1,0 +1,44 @@
+@page "/boards"
+@inject Thymus.Web.Services.BffApiClient ApiClient
+
+<PageTitle>Boards</PageTitle>
+
+<h1>Boards</h1>
+
+@if (_loading)
+{
+    <p>Laddar...</p>
+}
+else if (_unauthorized)
+{
+    <p>Du är inte inloggad. <a href="/login">Logga in</a></p>
+}
+else if (_boards is not null)
+{
+    <ul class="list-group">
+        @foreach (var board in _boards)
+        {
+            <li class="list-group-item">
+                <a href="@board.Url">@board.Name</a>
+            </li>
+        }
+    </ul>
+}
+
+@code {
+    private bool _loading = true;
+    private bool _unauthorized;
+    private IReadOnlyList<BoardDto>? _boards;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var boards = await ApiClient.GetBoardsAsync();
+
+        if (boards is null)
+            _unauthorized = true;
+        else
+            _boards = boards;
+
+        _loading = false;
+    }
+}
