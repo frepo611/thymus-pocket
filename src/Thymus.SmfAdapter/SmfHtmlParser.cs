@@ -87,6 +87,26 @@ public static class SmfHtmlParser
             .ToList();
     }
 
+    public static List<(string Name, string Url)> ParseBoards(string html)
+    {
+        var document = ParseDocument(html);
+
+        return document.QuerySelectorAll("a[href*='board=']") 
+            .Where(link =>
+            {
+                var href = link.GetAttribute("href");
+                return !string.IsNullOrWhiteSpace(href)
+                    && !href.Contains("action=unread", StringComparison.OrdinalIgnoreCase);
+            })
+            .Select(link => (
+                Name: NormalizeWhitespace(link.TextContent),
+                Url: link.GetAttribute("href")!
+            ))
+            .Where(b => !string.IsNullOrWhiteSpace(b.Name))
+            .DistinctBy(b => b.Url, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
     public static List<PostContent> ParseTopic(string html)
     {
         var document = ParseDocument(html);
@@ -144,13 +164,13 @@ public static class SmfHtmlParser
         return null;
     }
 
-    private static IDocument ParseDocument(string html)
+    static IDocument ParseDocument(string html)
     {
         var parser = new HtmlParser();
         return parser.ParseDocument(html);
     }
 
-    private static string NormalizeWhitespace(string? value)
+    static string NormalizeWhitespace(string? value)
     {
         if (string.IsNullOrWhiteSpace(value))
             return string.Empty;
