@@ -39,14 +39,17 @@ app.MapPost("/api/auth/login", async Task<Results<Ok, BadRequest<string>, Unauth
     if (string.IsNullOrWhiteSpace(request.Username) || string.IsNullOrWhiteSpace(request.Password))
         return TypedResults.BadRequest("Username and password are required.");
 
-    var sessionId = CreateSessionId();
-    var cookieFilePath = Path.Combine(sessionStoreDirectory, sessionId + ".json");
+    var sessionId = TryGetSessionIdFromCookie(httpContext, sessionCookieName) ?? CreateSessionId();
+    var cookieFilePath = GetSessionCookieFilePath(sessionStoreDirectory, sessionId);
+    var tempCookieFilePath = cookieFilePath + ".tmp";
 
     try
     {
         using var client = new SmfHttpClient(smfBaseUrl);
         await client.LoginAsync(request.Username, request.Password);
-        client.SaveCookies(cookieFilePath);
+        client.SaveCookies(tempCookieFilePath);
+
+        File.Move(tempCookieFilePath, cookieFilePath, overwrite: true);
 
         sessions[sessionId] = new SessionState(cookieFilePath, DateTimeOffset.UtcNow);
 
@@ -55,8 +58,8 @@ app.MapPost("/api/auth/login", async Task<Results<Ok, BadRequest<string>, Unauth
     }
     catch
     {
-        if (File.Exists(cookieFilePath))
-            File.Delete(cookieFilePath);
+        if (File.Exists(tempCookieFilePath))
+            File.Delete(tempCookieFilePath);
 
         return TypedResults.Unauthorized();
     }
@@ -64,7 +67,7 @@ app.MapPost("/api/auth/login", async Task<Results<Ok, BadRequest<string>, Unauth
 
 app.MapPost("/api/auth/logout", async Task<Results<Ok, UnauthorizedHttpResult>> (HttpContext httpContext) =>
 {
-    var session = TryGetSession(httpContext, sessions, sessionCookieName);
+    var session = TryGetSession(httpContext, sessions, sessionCookieName, sessionStoreDirectory);
     if (session is null)
         return TypedResults.Unauthorized();
 
@@ -79,20 +82,20 @@ app.MapPost("/api/auth/logout", async Task<Results<Ok, UnauthorizedHttpResult>> 
         // Best effort logout towards SMF; local session is still removed.
     }
 
-    RemoveSession(httpContext, sessions, sessionCookieName);
+    RemoveSession(httpContext, sessions, sessionCookieName, sessionStoreDirectory);
     return TypedResults.Ok();
 });
 
 app.MapGet("/api/threads", async Task<Results<Ok<IReadOnlyList<ThreadSummaryDto>>, UnauthorizedHttpResult>> (HttpContext httpContext) =>
 {
-    var session = TryGetSession(httpContext, sessions, sessionCookieName);
+    var session = TryGetSession(httpContext, sessions, sessionCookieName, sessionStoreDirectory);
     if (session is null)
         return TypedResults.Unauthorized();
 
     using var client = new SmfHttpClient(smfBaseUrl);
     if (!client.TryLoadCookies(session.CookieFilePath))
     {
-        RemoveSession(httpContext, sessions, sessionCookieName);
+        RemoveSession(httpContext, sessions, sessionCookieName, sessionStoreDirectory);
         return TypedResults.Unauthorized();
     }
 
@@ -115,14 +118,14 @@ app.MapGet("/api/threads/{id}", async Task<Results<Ok<ThreadDetailsDto>, NotFoun
     string id,
     HttpContext httpContext) =>
 {
-    var session = TryGetSession(httpContext, sessions, sessionCookieName);
+    var session = TryGetSession(httpContext, sessions, sessionCookieName, sessionStoreDirectory);
     if (session is null)
         return TypedResults.Unauthorized();
 
     using var client = new SmfHttpClient(smfBaseUrl);
     if (!client.TryLoadCookies(session.CookieFilePath))
     {
-        RemoveSession(httpContext, sessions, sessionCookieName);
+        RemoveSession(httpContext, sessions, sessionCookieName, sessionStoreDirectory);
         return TypedResults.Unauthorized();
     }
 
@@ -150,14 +153,14 @@ app.MapPost("/api/threads/{id}/replies", async Task<Results<Ok, BadRequest<strin
     if (string.IsNullOrWhiteSpace(request.Subject) || string.IsNullOrWhiteSpace(request.Message))
         return TypedResults.BadRequest("Subject and message are required.");
 
-    var session = TryGetSession(httpContext, sessions, sessionCookieName);
+    var session = TryGetSession(httpContext, sessions, sessionCookieName, sessionStoreDirectory);
     if (session is null)
         return TypedResults.Unauthorized();
 
     using var client = new SmfHttpClient(smfBaseUrl);
     if (!client.TryLoadCookies(session.CookieFilePath))
     {
-        RemoveSession(httpContext, sessions, sessionCookieName);
+        RemoveSession(httpContext, sessions, sessionCookieName, sessionStoreDirectory);
         return TypedResults.Unauthorized();
     }
 
@@ -197,34 +200,82 @@ static CookieOptions BuildSessionCookieOptions(HttpContext context)
 static SessionState? TryGetSession(
     HttpContext context,
     ConcurrentDictionary<string, SessionState> sessions,
-    string cookieName)
+    string cookieName,
+    string sessionStoreDirectory)
+{
+    var sessionId = TryGetSessionIdFromCookie(context, cookieName);
+    if (sessionId is null)
+        return null;
+
+    if (sessions.TryGetValue(sessionId, out var cachedSession))
+    {
+        if (!File.Exists(cachedSession.CookieFilePath))
+            return null;
+
+        return cachedSession;
+    }
+
+    var cookieFilePath = GetSessionCookieFilePath(sessionStoreDirectory, sessionId);
+    if (!File.Exists(cookieFilePath))
+        return null;
+
+    var restoredSession = new SessionState(cookieFilePath, DateTimeOffset.UtcNow);
+    sessions[sessionId] = restoredSession;
+
+    return restoredSession;
+}
+
+static string? TryGetSessionIdFromCookie(HttpContext context, string cookieName)
 {
     if (!context.Request.Cookies.TryGetValue(cookieName, out var sessionId) || string.IsNullOrWhiteSpace(sessionId))
         return null;
 
-    if (!sessions.TryGetValue(sessionId, out var session))
+    if (!IsValidSessionId(sessionId))
         return null;
 
-    if (!File.Exists(session.CookieFilePath))
-        return null;
-
-    return session;
+    return sessionId;
 }
 
 static void RemoveSession(
     HttpContext context,
     ConcurrentDictionary<string, SessionState> sessions,
-    string cookieName)
+    string cookieName,
+    string sessionStoreDirectory)
 {
-    if (context.Request.Cookies.TryGetValue(cookieName, out var sessionId)
-        && !string.IsNullOrWhiteSpace(sessionId)
-        && sessions.TryRemove(sessionId, out var session)
-        && File.Exists(session.CookieFilePath))
+    var sessionId = TryGetSessionIdFromCookie(context, cookieName);
+    if (sessionId is not null)
     {
-        File.Delete(session.CookieFilePath);
+        if (sessions.TryRemove(sessionId, out var session)
+            && File.Exists(session.CookieFilePath))
+        {
+            File.Delete(session.CookieFilePath);
+        }
+
+        var cookieFilePath = GetSessionCookieFilePath(sessionStoreDirectory, sessionId);
+        if (File.Exists(cookieFilePath))
+            File.Delete(cookieFilePath);
     }
 
     context.Response.Cookies.Delete(cookieName);
+}
+
+static string GetSessionCookieFilePath(string sessionStoreDirectory, string sessionId)
+{
+    return Path.Combine(sessionStoreDirectory, sessionId + ".json");
+}
+
+static bool IsValidSessionId(string sessionId)
+{
+    if (sessionId.Length != 64)
+        return false;
+
+    foreach (var c in sessionId)
+    {
+        if (!char.IsAsciiHexDigit(c))
+            return false;
+    }
+
+    return true;
 }
 
 static void TouchSession(SessionState session)

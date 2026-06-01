@@ -7,11 +7,14 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
+builder.Services.AddHttpContextAccessor();
+
 builder.Services.AddScoped<BffApiClient>(sp =>
 {
     var configuration = sp.GetRequiredService<IConfiguration>();
+    var httpContextAccessor = sp.GetRequiredService<IHttpContextAccessor>();
     var baseUrl = configuration["Bff:BaseUrl"] ?? "https://localhost:5001";
-    return new BffApiClient(baseUrl);
+    return new BffApiClient(baseUrl, httpContextAccessor);
 });
 
 var app = builder.Build();
