@@ -54,7 +54,7 @@ else
             <div class="alert alert-success">Inlägget skickades!</div>
         }
         <textarea class="form-control mb-2" rows="5" placeholder="Skriv ditt svar här..."
-            @bind="_replyMessage" disabled="@_sendingReply"></textarea>
+            @bind="_replyMessage" @bind:event="oninput" disabled="@_sendingReply"></textarea>
         <button class="btn btn-primary" @onclick="SendReplyAsync" disabled="@(_sendingReply || string.IsNullOrWhiteSpace(_replyMessage))">
             @(_sendingReply ? "Skickar..." : "Skicka svar")
         </button>
