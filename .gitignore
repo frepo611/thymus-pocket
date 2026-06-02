@@ -50,5 +50,4 @@ src/Thymus.Bff/.sessions/
 
 smf_2-0-19_install/
 
-src/Thymus.Bff/.tmp/
-
+/.tmp/*
