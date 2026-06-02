@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Security.Cryptography;
 using System.Text;
+using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Thymus.Bff.Contracts;
 using Thymus.SmfAdapter;
@@ -11,6 +12,32 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
+
+app.UseExceptionHandler(errorApp => errorApp.Run(async context =>
+{
+    var feature = context.Features.Get<IExceptionHandlerFeature>();
+    var ex = feature?.Error;
+
+    context.Response.ContentType = "application/json";
+    context.Response.StatusCode = ex switch
+    {
+        TaskCanceledException or OperationCanceledException => 504,
+        UnauthorizedAccessException => 401,
+        ArgumentException => 400,
+        _ => 500,
+    };
+
+    var message = ex switch
+    {
+        TaskCanceledException or OperationCanceledException => "Forumet svarade inte i tid, försök igen.",
+        UnauthorizedAccessException => "Åtkomst nekad.",
+        ArgumentException e => e.Message,
+        _ => "Ett oväntat fel inträffade.",
+    };
+
+    var detail = app.Environment.IsDevelopment() ? ex?.ToString() : null;
+    await context.Response.WriteAsJsonAsync(new { error = ex?.GetType().Name, message, detail });
+}));
 
 if (app.Environment.IsDevelopment())
 {
