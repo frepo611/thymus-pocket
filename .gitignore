@@ -47,5 +47,5 @@ src/Thymus.Poc/appsettings.json
 
 # BFF runtime session artifacts
 src/Thymus.Bff/.sessions/
-
+src/Thymus.Bff/.tmp/
 smf_2-0-19_install/
