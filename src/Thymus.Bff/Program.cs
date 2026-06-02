@@ -283,6 +283,26 @@ app.MapPost("/api/threads/{id}/replies", async Task<Results<Ok, BadRequest<strin
     return TypedResults.Ok();
 });
 
+// Temporary debug endpoint – shows HTML structure of a forum page for parser development.
+// Usage: GET /api/debug/html-structure?url=<smf-url>
+if (app.Environment.IsDevelopment())
+{
+    app.MapGet("/api/debug/html-structure", async (string url, HttpContext httpContext) =>
+    {
+        var session = TryGetSession(httpContext, sessions, sessionCookieName, sessionStoreDirectory);
+        if (session is null)
+            return Results.Unauthorized();
+
+        using var client = new SmfHttpClient(smfBaseUrl);
+        if (!client.TryLoadCookies(session.CookieFilePath))
+            return Results.Unauthorized();
+
+        var html = await client.GetRawHtmlAsync(url);
+        var info = SmfHtmlParser.DiagnoseHtml(html);
+        return Results.Ok(info);
+    });
+}
+
 app.Run();
 
 static string CreateSessionId()

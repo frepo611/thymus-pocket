@@ -100,6 +100,9 @@ public sealed class SmfHttpClient : IDisposable
             .ToList();
     }
 
+    public async Task<string> GetRawHtmlAsync(string url)
+        => await _http.GetStringAsync(url);
+
     public async Task<(string Title, List<PostContent> Posts, int? NextStart)> GetThreadPageAsync(string topicUrl, int start)
     {
         var topicParam = SmfHtmlParser.ExtractQueryParam(topicUrl, "topic")
@@ -111,7 +114,7 @@ public sealed class SmfHttpClient : IDisposable
 
         var title = SmfHtmlParser.ParseTopicTitle(html);
         var posts = SmfHtmlParser.ParseTopic(html);
-        var nextStart = SmfHtmlParser.GetNextPostStart(html, start);
+        var nextStart = SmfHtmlParser.GetNextPostStart(html, topicId, start);
         return (title, posts, nextStart);
     }
 

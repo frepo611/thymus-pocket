@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.RegularExpressions;
 using AngleSharp.Dom;
 using AngleSharp.Html.Parser;
 using Thymus.SmfAdapter.Models;
@@ -7,6 +8,54 @@ namespace Thymus.SmfAdapter;
 
 public static class SmfHtmlParser
 {
+    public static object DiagnoseHtml(string html)
+    {
+        var doc = ParseDocument(html);
+
+        var pageTitle = doc.QuerySelector("title")?.TextContent;
+        var navSection = doc.QuerySelector(".navigate_section")?.InnerHtml[..Math.Min(400, doc.QuerySelector(".navigate_section")?.InnerHtml.Length ?? 0)];
+
+        // Pagination links
+        var topicLinks = doc.QuerySelectorAll("a[href*='topic=']")
+            .Take(20).Select(e => e.GetAttribute("href")).ToList();
+        var boardLinks = doc.QuerySelectorAll("a[href*='board=']")
+            .Take(20).Select(e => e.GetAttribute("href")).ToList();
+        var pagenavLinks = doc.QuerySelectorAll(".pagelinks a, #pagelinks a, .pagenav a, .navigate_section a")
+            .Take(20).Select(e => e.GetAttribute("href")).ToList();
+
+        // Post container candidates
+        var forumpostsChildren = doc.QuerySelectorAll("#forumposts > *")
+            .Take(5).Select(e => $"<{e.TagName.ToLower()} id='{e.GetAttribute("id")}' class='{e.GetAttribute("class")}'>").ToList();
+        var windowbgCount = doc.QuerySelectorAll("#forumposts .windowbg").Length;
+        var windowbg2Count = doc.QuerySelectorAll("#forumposts .windowbg2").Length;
+        var msgDivs = doc.QuerySelectorAll("div[id^='msg_']")
+            .Take(5).Select(e => $"id={e.GetAttribute("id")} class={e.GetAttribute("class")}").ToList();
+        var postInner = doc.QuerySelectorAll(".post .inner").Take(3).Select(e => e.OuterHtml[..Math.Min(200, e.OuterHtml.Length)]).ToList();
+        var postbodyEls = doc.QuerySelectorAll(".postbody").Take(3).Select(e => e.OuterHtml[..Math.Min(200, e.OuterHtml.Length)]).ToList();
+
+        // Topic rows in board index
+        var topicRows = doc.QuerySelectorAll("tr td.subject a[href*='topic=']")
+            .Take(5).Select(e => $"{e.TextContent.Trim()} => {e.GetAttribute("href")}").ToList();
+        var topicCards = doc.QuerySelectorAll("#topic_container .windowbg").Length;
+
+        return new
+        {
+            pageTitle,
+            navSection,
+            pagination = new { topicLinks, boardLinks, pagenavLinks },
+            posts = new
+            {
+                windowbgCount,
+                windowbg2Count,
+                forumpostsChildren,
+                msgDivs,
+                postInner,
+                postbodyEls,
+            },
+            boardTopics = new { topicRows, topicCards },
+        };
+    }
+
     public static List<ThreadSummary> ParseThreadList(string html)
     {
         var document = ParseDocument(html);
@@ -278,26 +327,21 @@ public static class SmfHtmlParser
         return null;
     }
 
-    public static int? GetNextPostStart(string html, int currentStart)
+    public static int? GetNextPostStart(string html, string topicId, int currentStart)
     {
         var document = ParseDocument(html);
         var nextStarts = new List<int>();
 
-        foreach (var link in document.QuerySelectorAll("a[href*='topic=']"))
+        foreach (var link in document.QuerySelectorAll("a[href*='topic='], a[href*='topic,']"))
         {
             var href = link.GetAttribute("href");
             if (string.IsNullOrWhiteSpace(href))
                 continue;
 
-            var topicParam = ExtractQueryParam(href, "topic");
-            if (string.IsNullOrWhiteSpace(topicParam))
+            if (!TryExtractSmfPageOffset(href, "topic", out var hrefTopicId, out var start))
                 continue;
 
-            var parts = topicParam.Split('.');
-            if (parts.Length < 2)
-                continue;
-
-            if (!int.TryParse(parts[1], out var start))
+            if (!string.Equals(hrefTopicId, topicId, StringComparison.Ordinal))
                 continue;
 
             if (start > currentStart)
@@ -312,24 +356,16 @@ public static class SmfHtmlParser
         var document = ParseDocument(html);
         var nextStarts = new List<int>();
 
-        foreach (var link in document.QuerySelectorAll("a[href*='board=']"))
+        foreach (var link in document.QuerySelectorAll("a[href*='board='], a[href*='board,']"))
         {
             var href = link.GetAttribute("href");
             if (string.IsNullOrWhiteSpace(href))
                 continue;
 
-            var boardParam = ExtractQueryParam(href, "board");
-            if (string.IsNullOrWhiteSpace(boardParam))
+            if (!TryExtractSmfPageOffset(href, "board", out var hrefBoardId, out var start))
                 continue;
 
-            var parts = boardParam.Split('.');
-            if (parts.Length < 2)
-                continue;
-
-            if (!string.Equals(parts[0], boardId, StringComparison.Ordinal))
-                continue;
-
-            if (!int.TryParse(parts[1], out var start))
+            if (!string.Equals(hrefBoardId, boardId, StringComparison.Ordinal))
                 continue;
 
             if (start > currentStart)
@@ -337,6 +373,61 @@ public static class SmfHtmlParser
         }
 
         return nextStarts.Count == 0 ? null : nextStarts.Min();
+    }
+
+    static bool TryExtractSmfPageOffset(string url, string paramName, out string id, out int start)
+    {
+        id = string.Empty;
+        start = 0;
+
+        var paramValue = ExtractQueryParam(url, paramName);
+        if (!string.IsNullOrWhiteSpace(paramValue)
+            && TryExtractIdAndStart(paramValue, out id, out start))
+        {
+            return true;
+        }
+
+        // Supports URL forms like index.php?topic=704.20 and index.php/topic,704.20.html
+        var match = Regex.Match(
+            url,
+            $@"(?:^|[/?&;]){Regex.Escape(paramName)}(?:=|,)(?<id>\d+)(?:\.(?<start>\d+))?",
+            RegexOptions.IgnoreCase);
+
+        if (!match.Success)
+            return false;
+
+        id = match.Groups["id"].Value;
+        if (match.Groups["start"].Success && int.TryParse(match.Groups["start"].Value, out var parsedStart))
+        {
+            start = parsedStart;
+            return true;
+        }
+
+        var startQuery = ExtractQueryParam(url, "start");
+        if (!string.IsNullOrWhiteSpace(startQuery) && int.TryParse(startQuery, out parsedStart))
+        {
+            start = parsedStart;
+            return true;
+        }
+
+        start = 0;
+        return true;
+    }
+
+    static bool TryExtractIdAndStart(string value, out string id, out int start)
+    {
+        id = string.Empty;
+        start = 0;
+
+        var parts = value.Split('.');
+        if (parts.Length < 2)
+            return false;
+
+        if (string.IsNullOrWhiteSpace(parts[0]) || !int.TryParse(parts[1], out start))
+            return false;
+
+        id = parts[0];
+        return true;
     }
 
     static IDocument ParseDocument(string html)
