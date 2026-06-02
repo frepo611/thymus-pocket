@@ -35,7 +35,7 @@ else
                 @foreach (var topic in _topics)
                 {
                     <tr>
-                        <td><a href="@topic.Url" target="_blank">@topic.Title</a></td>
+                        <td><a href="@($"/thread?url={Uri.EscapeDataString(topic.Url)}")" >@topic.Title</a></td>
                         <td>@topic.LastPostBy</td>
                         <td>@topic.LastPostAt</td>
                     </tr>

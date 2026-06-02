@@ -178,26 +178,69 @@ public static class SmfHtmlParser
         return results;
     }
 
+    public static string ParseTopicTitle(string html)
+    {
+        var document = ParseDocument(html);
+        // SMF puts topic title in .navigate_section h3, or <title>
+        var navTitle = document.QuerySelector(".navigate_section h3");
+        if (navTitle is not null)
+            return NormalizeWhitespace(navTitle.TextContent) ?? string.Empty;
+
+        var titleEl = document.QuerySelector("title");
+        if (titleEl is not null)
+        {
+            var t = NormalizeWhitespace(titleEl.TextContent) ?? string.Empty;
+            // Strip common suffix like " - Forum Name"
+            var sep = t.LastIndexOf(" - ", StringComparison.Ordinal);
+            return sep > 0 ? t[..sep].Trim() : t;
+        }
+
+        return string.Empty;
+    }
+
     public static List<PostContent> ParseTopic(string html)
     {
         var document = ParseDocument(html);
         var results = new List<PostContent>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
 
-        foreach (var card in document.QuerySelectorAll("#forumposts .windowbg"))
+        var cards = document.QuerySelectorAll("#forumposts .windowbg, #forumposts .windowbg2, #forumposts > div[id^='msg_']");
+        if (cards.Length == 0)
         {
-            var innerEl = card.QuerySelector(".post .inner[data-msgid]");
+            // Fallback for custom themes that do not keep the default #forumposts/.windowbg structure.
+            cards = document.QuerySelectorAll("div[id^='msg_'], .post_wrapper, .windowbg, .windowbg2");
+        }
+
+        foreach (var card in cards)
+        {
+            var innerEl = card.QuerySelector(".post .inner[data-msgid], .post .inner[id^='msg_'], .post .inner, .postbody, .message");
             if (innerEl is null)
                 continue;
 
-            int.TryParse(innerEl.GetAttribute("data-msgid"), out var messageId);
+            var messageIdText = innerEl.GetAttribute("data-msgid")
+                ?? innerEl.GetAttribute("id")
+                ?? card.GetAttribute("id");
+
+            if (!string.IsNullOrWhiteSpace(messageIdText)
+                && messageIdText.StartsWith("msg_", StringComparison.OrdinalIgnoreCase))
+            {
+                messageIdText = messageIdText[4..];
+            }
+
+            int.TryParse(messageIdText, out var messageId);
 
             var author = NormalizeWhitespace(
                 card.QuerySelector(".poster h4 a")?.TextContent
-                ?? card.QuerySelector(".poster h4")?.TextContent);
+                ?? card.QuerySelector(".poster h4")?.TextContent
+                ?? card.QuerySelector(".poster .name")?.TextContent);
 
             var body = NormalizeWhitespace(innerEl.TextContent);
+            var dedupeKey = $"{messageId}|{body}";
+            if (!seen.Add(dedupeKey))
+                continue;
 
-            var dateText = card.QuerySelector(".postinfo a[rel='nofollow']")?.TextContent;
+            var dateText = card.QuerySelector(".postinfo a[rel='nofollow']")?.TextContent
+                ?? card.QuerySelector(".keyinfo .smalltext")?.TextContent;
             DateTimeOffset? postedAt = null;
             if (!string.IsNullOrWhiteSpace(dateText)
                 && DateTimeOffset.TryParse(
@@ -233,6 +276,35 @@ public static class SmfHtmlParser
         }
 
         return null;
+    }
+
+    public static int? GetNextPostStart(string html, int currentStart)
+    {
+        var document = ParseDocument(html);
+        var nextStarts = new List<int>();
+
+        foreach (var link in document.QuerySelectorAll("a[href*='topic=']"))
+        {
+            var href = link.GetAttribute("href");
+            if (string.IsNullOrWhiteSpace(href))
+                continue;
+
+            var topicParam = ExtractQueryParam(href, "topic");
+            if (string.IsNullOrWhiteSpace(topicParam))
+                continue;
+
+            var parts = topicParam.Split('.');
+            if (parts.Length < 2)
+                continue;
+
+            if (!int.TryParse(parts[1], out var start))
+                continue;
+
+            if (start > currentStart)
+                nextStarts.Add(start);
+        }
+
+        return nextStarts.Count == 0 ? null : nextStarts.Min();
     }
 
     public static int? GetNextBoardStart(string html, string boardId, int currentStart)

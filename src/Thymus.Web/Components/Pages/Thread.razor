@@ -1,0 +1,102 @@
+@page "/thread"
+@inject Thymus.Web.Services.BffApiClient ApiClient
+
+<PageTitle>@(_title ?? "Tråd")</PageTitle>
+
+@if (_loading)
+{
+    <p>Laddar...</p>
+}
+else if (_unauthorized)
+{
+    <p>Du är inte inloggad. <a href="/login">Logga in</a></p>
+}
+else
+{
+    <h1>@_title</h1>
+    <p><a href="javascript:history.back()">Tillbaka</a></p>
+
+    @if (_posts.Count == 0)
+    {
+        <p>Inga inlägg hittades.</p>
+    }
+    else
+    {
+        @foreach (var post in _posts)
+        {
+            <div class="card mb-3">
+                <div class="card-header d-flex justify-content-between">
+                    <strong>@post.Author</strong>
+                    <small class="text-muted">@post.PostedAt</small>
+                </div>
+                <div class="card-body">
+                    <p class="card-text" style="white-space: pre-wrap;">@post.Body</p>
+                </div>
+            </div>
+        }
+    }
+
+    @if (_nextStart is not null)
+    {
+        <button class="btn btn-outline-primary" @onclick="LoadMoreAsync" disabled="@_loadingMore">
+            @(_loadingMore ? "Laddar..." : "Ladda fler inlägg")
+        </button>
+    }
+}
+
+@code {
+    [SupplyParameterFromQuery(Name = "url")]
+    public string? TopicUrl { get; set; }
+
+    private readonly List<PostDto> _posts = new();
+    private string? _title;
+    private bool _loading = true;
+    private bool _unauthorized;
+    private bool _loadingMore;
+    private int? _nextStart;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPageAsync(0, reset: true);
+    }
+
+    private async Task LoadPageAsync(int start, bool reset)
+    {
+        if (reset)
+            _loading = true;
+        else
+            _loadingMore = true;
+
+        if (string.IsNullOrWhiteSpace(TopicUrl))
+        {
+            _loading = false;
+            return;
+        }
+
+        var page = await ApiClient.GetThreadPageAsync(TopicUrl, start);
+
+        if (page is null)
+        {
+            _unauthorized = true;
+        }
+        else
+        {
+            if (reset)
+            {
+                _posts.Clear();
+                _title = page.Title;
+            }
+            _posts.AddRange(page.Posts);
+            _nextStart = page.NextStart;
+        }
+
+        _loading = false;
+        _loadingMore = false;
+    }
+
+    private async Task LoadMoreAsync()
+    {
+        if (_nextStart is null) return;
+        await LoadPageAsync(_nextStart.Value, reset: false);
+    }
+}

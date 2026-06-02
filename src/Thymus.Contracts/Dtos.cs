@@ -25,3 +25,8 @@ public sealed record ThreadDetailsDto(
 public sealed record TopicsPageDto(
     IReadOnlyList<ThreadSummaryDto> Items,
     int? NextStart);
+
+public sealed record PostsPageDto(
+    string Title,
+    IReadOnlyList<PostDto> Posts,
+    int? NextStart);

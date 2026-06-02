@@ -158,6 +158,41 @@ app.MapGet("/api/topics", async Task<Results<Ok<TopicsPageDto>, BadRequest<strin
     return TypedResults.Ok(new TopicsPageDto(items, page.NextStart));
 });
 
+app.MapGet("/api/thread", async Task<Results<Ok<PostsPageDto>, BadRequest<string>, UnauthorizedHttpResult>> (
+    string url,
+    int start,
+    HttpContext httpContext) =>
+{
+    if (string.IsNullOrWhiteSpace(url))
+        return TypedResults.BadRequest("url is required.");
+
+    if (start < 0)
+        return TypedResults.BadRequest("start must be >= 0.");
+
+    var session = TryGetSession(httpContext, sessions, sessionCookieName, sessionStoreDirectory);
+    if (session is null)
+        return TypedResults.Unauthorized();
+
+    using var client = new SmfHttpClient(smfBaseUrl);
+    if (!client.TryLoadCookies(session.CookieFilePath))
+    {
+        RemoveSession(httpContext, sessions, sessionCookieName, sessionStoreDirectory);
+        return TypedResults.Unauthorized();
+    }
+
+    var page = await client.GetThreadPageAsync(url, start);
+    var posts = page.Posts
+        .Select(p => new PostDto(
+            MessageId: p.MessageId,
+            Author: p.Author,
+            Body: p.Body,
+            PostedAt: p.PostedAt))
+        .ToList();
+
+    TouchSession(session);
+    return TypedResults.Ok(new PostsPageDto(page.Title, posts, page.NextStart));
+});
+
 app.MapGet("/api/threads", async Task<Results<Ok<IReadOnlyList<ThreadSummaryDto>>, UnauthorizedHttpResult>> (HttpContext httpContext) =>
 {
     var session = TryGetSession(httpContext, sessions, sessionCookieName, sessionStoreDirectory);

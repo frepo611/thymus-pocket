@@ -100,6 +100,21 @@ public sealed class SmfHttpClient : IDisposable
             .ToList();
     }
 
+    public async Task<(string Title, List<PostContent> Posts, int? NextStart)> GetThreadPageAsync(string topicUrl, int start)
+    {
+        var topicParam = SmfHtmlParser.ExtractQueryParam(topicUrl, "topic")
+            ?? throw new ArgumentException("Could not extract topic parameter from URL.", nameof(topicUrl));
+
+        var topicId = topicParam.Split('.')[0];
+        var pageUrl = $"index.php?topic={Uri.EscapeDataString(topicId + "." + start)}";
+        var html = await _http.GetStringAsync(pageUrl);
+
+        var title = SmfHtmlParser.ParseTopicTitle(html);
+        var posts = SmfHtmlParser.ParseTopic(html);
+        var nextStart = SmfHtmlParser.GetNextPostStart(html, start);
+        return (title, posts, nextStart);
+    }
+
     public async Task<List<PostContent>> GetTopicAsync(string topicUrl)
     {
         var html = await _http.GetStringAsync(topicUrl);
