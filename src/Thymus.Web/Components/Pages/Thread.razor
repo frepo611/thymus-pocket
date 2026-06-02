@@ -22,7 +22,7 @@ else
     }
     else
     {
-        @foreach (var post in _posts)
+        @foreach (Contracts.PostDto post in _posts)
         {
             <div class="card mb-3">
                 <div class="card-header d-flex justify-content-between">
@@ -54,6 +54,7 @@ else
     private bool _unauthorized;
     private bool _loadingMore;
     private int? _nextStart;
+    private bool _newestFirst = true;
 
     protected override async Task OnInitializedAsync()
     {
@@ -73,7 +74,7 @@ else
             return;
         }
 
-        var page = await ApiClient.GetThreadPageAsync(TopicUrl, start);
+        var page = await ApiClient.GetThreadPageAsync(TopicUrl, start, _newestFirst);
 
         if (page is null)
         {
@@ -91,11 +92,18 @@ else
                 .Select(BuildPostKey)
                 .ToHashSet(StringComparer.Ordinal);
 
+            var incomingPosts = new List<PostDto>();
+
             foreach (var post in page.Posts)
             {
                 if (existingPostKeys.Add(BuildPostKey(post)))
-                    _posts.Add(post);
+                    incomingPosts.Add(post);
             }
+
+            if (_newestFirst)
+                _posts.InsertRange(0, incomingPosts);
+            else
+                _posts.AddRange(incomingPosts);
 
             _nextStart = page.NextStart;
         }
