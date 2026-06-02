@@ -114,6 +114,52 @@ public sealed class SmfHtmlParserTests
       }
 
       [Fact]
+      public void ExtractTopicPageStarts_ReturnsOrderedUniqueStarts()
+      {
+        const string html = """
+          <div class='pagelinks'>
+            <a href='index.php?topic=425.40'>3</a>
+            <a href='index.php?topic=425.20'>2</a>
+            <a href='index.php?topic=425.20'>2-dup</a>
+            <a href='index.php?action=reporttm;topic=425.1;msg=16332'>Report</a>
+          </div>
+          """;
+
+        var starts = SmfHtmlParser.ExtractTopicPageStarts(html, "425");
+        Assert.Equal(new[] { 0, 20, 40 }, starts);
+      }
+
+      [Fact]
+      public void GetPreviousPostStart_FindsPreviousOffset()
+      {
+        const string html = """
+          <div class='pagelinks'>
+            <a href='index.php?topic=425.0'>1</a>
+            <a href='index.php?topic=425.20'>2</a>
+            <a href='index.php?topic=425.40'>3</a>
+          </div>
+          """;
+
+        Assert.Equal(20, SmfHtmlParser.GetPreviousPostStart(html, "425", 40));
+        Assert.Equal(0, SmfHtmlParser.GetPreviousPostStart(html, "425", 20));
+        Assert.Null(SmfHtmlParser.GetPreviousPostStart(html, "425", 0));
+      }
+
+      [Fact]
+      public void GetLatestPostStart_FindsHighestOffset()
+      {
+        const string html = """
+          <div class='pagelinks'>
+            <a href='index.php?topic=425.0'>1</a>
+            <a href='index.php?topic=425.20'>2</a>
+            <a href='index.php?topic=425.300'>16</a>
+          </div>
+          """;
+
+        Assert.Equal(300, SmfHtmlParser.GetLatestPostStart(html, "425"));
+      }
+
+      [Fact]
       public void GetNextBoardStart_FindsNextOffsetFromBoardLinks()
       {
         const string html = """

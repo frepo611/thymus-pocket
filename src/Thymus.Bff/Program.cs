@@ -160,7 +160,8 @@ app.MapGet("/api/topics", async Task<Results<Ok<TopicsPageDto>, BadRequest<strin
 app.MapGet("/api/thread", async Task<Results<Ok<PostsPageDto>, BadRequest<string>, UnauthorizedHttpResult>> (
     string url,
     int start,
-    HttpContext httpContext) =>
+    HttpContext httpContext,
+    bool newestFirst = true) =>
 {
     if (string.IsNullOrWhiteSpace(url))
         return TypedResults.BadRequest("url is required.");
@@ -179,7 +180,7 @@ app.MapGet("/api/thread", async Task<Results<Ok<PostsPageDto>, BadRequest<string
         return TypedResults.Unauthorized();
     }
 
-    var page = await client.GetThreadPageAsync(url, start);
+    var page = await client.GetThreadPageAsync(url, start, newestFirst);
     var posts = page.Posts
         .Select(p => new PostDto(
             MessageId: p.MessageId,

@@ -74,11 +74,11 @@ public sealed class BffApiClient : IDisposable
         return await response.Content.ReadFromJsonAsync<TopicsPageDto>();
     }
 
-    public async Task<PostsPageDto?> GetThreadPageAsync(string topicUrl, int start)
+    public async Task<PostsPageDto?> GetThreadPageAsync(string topicUrl, int start, bool newestFirst = true)
     {
         using var request = new HttpRequestMessage(
             HttpMethod.Get,
-            $"/api/thread?url={Uri.EscapeDataString(topicUrl)}&start={start}");
+            $"/api/thread?url={Uri.EscapeDataString(topicUrl)}&start={start}&newestFirst={newestFirst.ToString().ToLowerInvariant()}");
         ForwardSessionCookieToBff(request);
 
         using var response = await _http.SendAsync(request);

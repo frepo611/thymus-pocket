@@ -103,18 +103,42 @@ public sealed class SmfHttpClient : IDisposable
     public async Task<string> GetRawHtmlAsync(string url)
         => await _http.GetStringAsync(url);
 
-    public async Task<(string Title, List<PostContent> Posts, int? NextStart)> GetThreadPageAsync(string topicUrl, int start)
+    public async Task<(string Title, List<PostContent> Posts, int? NextStart)> GetThreadPageAsync(string topicUrl, int start, bool newestFirst = false)
     {
         var topicParam = SmfHtmlParser.ExtractQueryParam(topicUrl, "topic")
             ?? throw new ArgumentException("Could not extract topic parameter from URL.", nameof(topicUrl));
 
         var topicId = topicParam.Split('.')[0];
-        var pageUrl = $"index.php?topic={Uri.EscapeDataString(topicId + "." + start)}";
-        var html = await _http.GetStringAsync(pageUrl);
+
+        var requestedStart = start;
+        string html;
+        if (newestFirst && start == 0)
+        {
+            var firstPageUrl = $"index.php?topic={Uri.EscapeDataString(topicId + ".0")}";
+            var firstPageHtml = await _http.GetStringAsync(firstPageUrl);
+
+            requestedStart = SmfHtmlParser.GetLatestPostStart(firstPageHtml, topicId);
+            if (requestedStart == 0)
+            {
+                html = firstPageHtml;
+            }
+            else
+            {
+                var latestPageUrl = $"index.php?topic={Uri.EscapeDataString(topicId + "." + requestedStart)}";
+                html = await _http.GetStringAsync(latestPageUrl);
+            }
+        }
+        else
+        {
+            var pageUrl = $"index.php?topic={Uri.EscapeDataString(topicId + "." + requestedStart)}";
+            html = await _http.GetStringAsync(pageUrl);
+        }
 
         var title = SmfHtmlParser.ParseTopicTitle(html);
         var posts = SmfHtmlParser.ParseTopic(html);
-        var nextStart = SmfHtmlParser.GetNextPostStart(html, topicId, start);
+        var nextStart = newestFirst
+            ? SmfHtmlParser.GetPreviousPostStart(html, topicId, requestedStart)
+            : SmfHtmlParser.GetNextPostStart(html, topicId, requestedStart);
         return (title, posts, nextStart);
     }
 

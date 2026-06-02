@@ -329,8 +329,28 @@ public static class SmfHtmlParser
 
     public static int? GetNextPostStart(string html, string topicId, int currentStart)
     {
+        var starts = ExtractTopicPageStarts(html, topicId);
+        var nextStarts = starts.Where(start => start > currentStart).ToList();
+        return nextStarts.Count == 0 ? null : nextStarts.Min();
+    }
+
+    public static int? GetPreviousPostStart(string html, string topicId, int currentStart)
+    {
+        var starts = ExtractTopicPageStarts(html, topicId);
+        var previousStarts = starts.Where(start => start < currentStart).ToList();
+        return previousStarts.Count == 0 ? null : previousStarts.Max();
+    }
+
+    public static int GetLatestPostStart(string html, string topicId)
+    {
+        var starts = ExtractTopicPageStarts(html, topicId);
+        return starts.Count == 0 ? 0 : starts.Max();
+    }
+
+    public static List<int> ExtractTopicPageStarts(string html, string topicId)
+    {
         var document = ParseDocument(html);
-        var nextStarts = new HashSet<int>();
+        var starts = new HashSet<int> { 0 };
 
         foreach (var link in document.QuerySelectorAll("a[href]"))
         {
@@ -348,8 +368,7 @@ public static class SmfHtmlParser
             if (!string.Equals(hrefTopicId, topicId, StringComparison.Ordinal))
                 continue;
 
-            if (start > currentStart)
-                nextStarts.Add(start);
+            starts.Add(start);
         }
 
         // Some SMF themes emit thread pagination links with only start=... in the URL.
@@ -365,14 +384,11 @@ public static class SmfHtmlParser
                 continue;
             }
 
-            if (!TryExtractStartOnly(href, out var start))
-                continue;
-
-            if (start > currentStart)
-                nextStarts.Add(start);
+            if (TryExtractStartOnly(href, out var start))
+                starts.Add(start);
         }
 
-        return nextStarts.Count == 0 ? null : nextStarts.Min();
+        return starts.OrderBy(start => start).ToList();
     }
 
     public static int? GetNextBoardStart(string html, string boardId, int currentStart)
