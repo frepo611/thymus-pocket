@@ -86,7 +86,17 @@ else
                 _posts.Clear();
                 _title = page.Title;
             }
-            _posts.AddRange(page.Posts);
+
+            var existingPostKeys = _posts
+                .Select(BuildPostKey)
+                .ToHashSet(StringComparer.Ordinal);
+
+            foreach (var post in page.Posts)
+            {
+                if (existingPostKeys.Add(BuildPostKey(post)))
+                    _posts.Add(post);
+            }
+
             _nextStart = page.NextStart;
         }
 
@@ -96,7 +106,22 @@ else
 
     private async Task LoadMoreAsync()
     {
-        if (_nextStart is null) return;
+        if (_nextStart is null)
+            return;
+
         await LoadPageAsync(_nextStart.Value, reset: false);
+    }
+
+    private static string BuildPostKey(PostDto post)
+    {
+        if (post.MessageId > 0)
+            return $"id:{post.MessageId}";
+
+        var postedAtTicks = post.PostedAt?.UtcTicks ?? 0;
+        var normalizedBody = string.Join(
+            " ",
+            (post.Body ?? string.Empty).Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+
+        return $"fallback:{post.Author}|{postedAtTicks}|{normalizedBody}";
     }
 }
