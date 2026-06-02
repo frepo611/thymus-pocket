@@ -27,7 +27,6 @@ else
             <thead>
                 <tr>
                     <th>Titel</th>
-                    <th>Senast av</th>
                     <th>Senast</th>
                 </tr>
             </thead>
@@ -36,7 +35,6 @@ else
                 {
                     <tr>
                         <td><a href="@($"/thread?url={Uri.EscapeDataString(topic.Url)}")" >@topic.Title</a></td>
-                        <td>@topic.LastPostBy</td>
                         <td>@topic.LastPostAt</td>
                     </tr>
                 }
