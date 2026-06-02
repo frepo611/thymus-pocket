@@ -124,6 +124,9 @@ app.MapGet("/api/topics", async Task<Results<Ok<TopicsPageDto>, BadRequest<strin
     if (string.IsNullOrWhiteSpace(boardId))
         return TypedResults.BadRequest("boardId is required.");
 
+    if (!boardId.All(char.IsDigit))
+        return TypedResults.BadRequest("boardId must be numeric.");
+
     if (start < 0)
         return TypedResults.BadRequest("start must be >= 0.");
 
@@ -138,12 +141,8 @@ app.MapGet("/api/topics", async Task<Results<Ok<TopicsPageDto>, BadRequest<strin
         return TypedResults.Unauthorized();
     }
 
-    var boards = await client.GetBoardsAsync();
-    var board = boards.FirstOrDefault(b => string.Equals(GetBoardIdFromBoardUrl(b.Url), boardId, StringComparison.Ordinal));
-    if (string.IsNullOrWhiteSpace(board.Url))
-        return TypedResults.NotFound("Board not found.");
-
-    var page = await client.GetBoardTopicsPageAsync(board.Url, start);
+    var boardUrl = $"index.php?board={Uri.EscapeDataString(boardId + ".0")}";
+    var page = await client.GetBoardTopicsPageAsync(boardUrl, start);
     var items = page.Items
         .Select(topic => new ThreadSummaryDto(
             Id: BuildThreadId(topic.Url),

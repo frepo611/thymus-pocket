@@ -9,6 +9,7 @@ public sealed class BffApiClient : IDisposable
 
     private readonly HttpClient _http;
     private readonly IHttpContextAccessor _httpContextAccessor;
+    private string? _sessionId;
 
     public BffApiClient(string baseUrl, IHttpContextAccessor httpContextAccessor)
     {
@@ -104,6 +105,12 @@ public sealed class BffApiClient : IDisposable
 
     private void ForwardSessionCookieToBff(HttpRequestMessage request)
     {
+        if (!string.IsNullOrWhiteSpace(_sessionId))
+        {
+            request.Headers.TryAddWithoutValidation("Cookie", $"{SessionCookieName}={_sessionId}");
+            return;
+        }
+
         var context = _httpContextAccessor.HttpContext;
         if (context is null)
             return;
@@ -111,6 +118,7 @@ public sealed class BffApiClient : IDisposable
         if (context.Request.Cookies.TryGetValue(SessionCookieName, out var sessionId)
             && !string.IsNullOrWhiteSpace(sessionId))
         {
+            _sessionId = sessionId;
             request.Headers.TryAddWithoutValidation("Cookie", $"{SessionCookieName}={sessionId}");
         }
     }
@@ -129,6 +137,11 @@ public sealed class BffApiClient : IDisposable
             if (!TryExtractCookieValue(header, SessionCookieName, out var sessionId))
                 continue;
 
+            _sessionId = sessionId;
+
+            if (context.Response.HasStarted)
+                return;
+
             context.Response.Cookies.Append(SessionCookieName, sessionId, new CookieOptions
             {
                 HttpOnly = true,
@@ -144,8 +157,13 @@ public sealed class BffApiClient : IDisposable
 
     private void DeleteSessionCookieFromBrowser()
     {
+        _sessionId = null;
+
         var context = _httpContextAccessor.HttpContext;
         if (context is null)
+            return;
+
+        if (context.Response.HasStarted)
             return;
 
         context.Response.Cookies.Delete(SessionCookieName);

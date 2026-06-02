@@ -34,7 +34,7 @@ public static class SmfHtmlParser
         var postbodyEls = doc.QuerySelectorAll(".postbody").Take(3).Select(e => e.OuterHtml[..Math.Min(200, e.OuterHtml.Length)]).ToList();
 
         // Topic rows in board index
-        var topicRows = doc.QuerySelectorAll("tr td.subject a[href*='topic=']")
+        var topicRows = doc.QuerySelectorAll("tr td.subject span[id^='msg_'] > a[href*='topic=']")
             .Take(5).Select(e => $"{e.TextContent.Trim()} => {e.GetAttribute("href")}").ToList();
         var topicCards = doc.QuerySelectorAll("#topic_container .windowbg").Length;
 
@@ -67,7 +67,7 @@ public static class SmfHtmlParser
             if (subjectCell is null)
                 continue;
 
-            var subjectLink = subjectCell.QuerySelector("a[href]");
+            var subjectLink = subjectCell.QuerySelector("span[id^='msg_'] > a[href]");
             if (subjectLink is null)
                 continue;
 
@@ -330,12 +330,16 @@ public static class SmfHtmlParser
     public static int? GetNextPostStart(string html, string topicId, int currentStart)
     {
         var document = ParseDocument(html);
-        var nextStarts = new List<int>();
+        var nextStarts = new HashSet<int>();
 
-        foreach (var link in document.QuerySelectorAll("a[href*='topic='], a[href*='topic,']"))
+        foreach (var link in document.QuerySelectorAll("a[href]"))
         {
             var href = link.GetAttribute("href");
             if (string.IsNullOrWhiteSpace(href))
+                continue;
+
+            // Skip action links like report/post/notify that may contain topic={id}.1 etc.
+            if (href.Contains("action=", StringComparison.OrdinalIgnoreCase))
                 continue;
 
             if (!TryExtractSmfPageOffset(href, "topic", out var hrefTopicId, out var start))
@@ -348,15 +352,35 @@ public static class SmfHtmlParser
                 nextStarts.Add(start);
         }
 
+        // Some SMF themes emit thread pagination links with only start=... in the URL.
+        foreach (var link in document.QuerySelectorAll(".pagelinks a, #pagelinks a, .pagenav a, .navigate_section a"))
+        {
+            var href = link.GetAttribute("href");
+            if (string.IsNullOrWhiteSpace(href))
+                continue;
+
+            if (href.Contains("board=", StringComparison.OrdinalIgnoreCase)
+                || href.Contains("board,", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            if (!TryExtractStartOnly(href, out var start))
+                continue;
+
+            if (start > currentStart)
+                nextStarts.Add(start);
+        }
+
         return nextStarts.Count == 0 ? null : nextStarts.Min();
     }
 
     public static int? GetNextBoardStart(string html, string boardId, int currentStart)
     {
         var document = ParseDocument(html);
-        var nextStarts = new List<int>();
+        var nextStarts = new HashSet<int>();
 
-        foreach (var link in document.QuerySelectorAll("a[href*='board='], a[href*='board,']"))
+        foreach (var link in document.QuerySelectorAll("a[href]"))
         {
             var href = link.GetAttribute("href");
             if (string.IsNullOrWhiteSpace(href))
@@ -366,6 +390,26 @@ public static class SmfHtmlParser
                 continue;
 
             if (!string.Equals(hrefBoardId, boardId, StringComparison.Ordinal))
+                continue;
+
+            if (start > currentStart)
+                nextStarts.Add(start);
+        }
+
+        // Some SMF themes emit pagination links with only start=... in the URL.
+        foreach (var link in document.QuerySelectorAll(".pagelinks a, #pagelinks a, .pagenav a, .navigate_section a"))
+        {
+            var href = link.GetAttribute("href");
+            if (string.IsNullOrWhiteSpace(href))
+                continue;
+
+            if (href.Contains("topic=", StringComparison.OrdinalIgnoreCase)
+                || href.Contains("topic,", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            if (!TryExtractStartOnly(href, out var start))
                 continue;
 
             if (start > currentStart)
@@ -427,6 +471,32 @@ public static class SmfHtmlParser
             return false;
 
         id = parts[0];
+        return true;
+    }
+
+    static bool TryExtractStartOnly(string url, out int start)
+    {
+        start = 0;
+
+        var startQuery = ExtractQueryParam(url, "start");
+        if (!string.IsNullOrWhiteSpace(startQuery) && int.TryParse(startQuery, out var parsedStart))
+        {
+            start = parsedStart;
+            return true;
+        }
+
+        var match = Regex.Match(
+            url,
+            @"(?:^|[/?&;])start(?:=|,)(?<start>\d+)",
+            RegexOptions.IgnoreCase);
+
+        if (!match.Success)
+            return false;
+
+        if (!int.TryParse(match.Groups["start"].Value, out parsedStart))
+            return false;
+
+        start = parsedStart;
         return true;
     }
 

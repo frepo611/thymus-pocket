@@ -11,7 +11,7 @@ public sealed class SmfHtmlParserTests
         const string html = """
             <table>
               <tr>
-                <td class='subject'><a href='https://forum/index.php?topic=123.0'>Hej varlden</a></td>
+                <td class='subject'><span id='msg_123'><a href='https://forum/index.php?topic=123.0'>Hej varlden</a></span></td>
                 <td class='board'><a href='https://forum/index.php?board=5.0'>Allmant</a></td>
                 <td class='lastpost'><a href='https://forum/index.php?action=profile;u=1'>Ladde</a> Idag 10:00</td>
               </tr>
@@ -66,4 +66,81 @@ public sealed class SmfHtmlParserTests
         Assert.Equal("Forsta inlagget", posts[0].Body);
         Assert.True(posts[0].PostedAt.HasValue);
     }
+
+      [Fact]
+      public void GetNextPostStart_FindsNextOffsetFromTopicLinks()
+      {
+        const string html = """
+          <div class='pagelinks'>
+            <a href='index.php?topic=425.0'>1</a>
+            <a href='index.php?topic=425.20'>2</a>
+            <a href='index.php?topic=425.40'>3</a>
+            <a href='index.php?topic=462.20'>Other topic</a>
+          </div>
+          """;
+
+        Assert.Equal(20, SmfHtmlParser.GetNextPostStart(html, "425", 0));
+        Assert.Equal(40, SmfHtmlParser.GetNextPostStart(html, "425", 20));
+        Assert.Null(SmfHtmlParser.GetNextPostStart(html, "425", 40));
+      }
+
+      [Fact]
+      public void GetNextPostStart_FindsNextOffsetFromStartOnlyPaginationLinks()
+      {
+        const string html = """
+          <div class='pagelinks'>
+            <a href='index.php?start=0'>1</a>
+            <a href='index.php?start=20'>2</a>
+            <a href='index.php?board=6.30'>Board link</a>
+          </div>
+          """;
+
+        Assert.Equal(20, SmfHtmlParser.GetNextPostStart(html, "425", 0));
+      }
+
+      [Fact]
+      public void GetNextPostStart_IgnoresActionLinksWithTopicFractionalOffsets()
+      {
+        const string html = """
+          <div>
+            <a href='index.php?action=reporttm;topic=425.1;msg=16332'>Report</a>
+            <a href='index.php?action=post;quote=16331;topic=425.0;last_msg=163091'>Quote</a>
+            <a href='index.php?topic=425.20'>2</a>
+            <a href='index.php?topic=425.40'>3</a>
+          </div>
+          """;
+
+        Assert.Equal(20, SmfHtmlParser.GetNextPostStart(html, "425", 0));
+      }
+
+      [Fact]
+      public void GetNextBoardStart_FindsNextOffsetFromBoardLinks()
+      {
+        const string html = """
+          <div class='pagelinks'>
+            <a href='index.php?board=6.0'>1</a>
+            <a href='index.php?board=6.30'>2</a>
+            <a href='index.php?board=6.60'>3</a>
+            <a href='index.php?board=7.30'>Other board</a>
+          </div>
+          """;
+
+        Assert.Equal(30, SmfHtmlParser.GetNextBoardStart(html, "6", 0));
+        Assert.Equal(60, SmfHtmlParser.GetNextBoardStart(html, "6", 30));
+        Assert.Null(SmfHtmlParser.GetNextBoardStart(html, "6", 60));
+      }
+
+      [Fact]
+      public void GetNextBoardStart_FindsNextOffsetFromStartOnlyPaginationLinks()
+      {
+        const string html = """
+          <div class='pagelinks'>
+            <a href='index.php?start=0'>1</a>
+            <a href='index.php?start=30'>2</a>
+            <a href='index.php?topic=704.20'>Topic link</a>
+          </div>
+          """;
+
+        Assert.Equal(30, SmfHtmlParser.GetNextBoardStart(html, "6", 0));
+      }
 }

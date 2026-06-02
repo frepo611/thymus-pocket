@@ -158,6 +158,25 @@ else
 }
 
 Console.WriteLine();
+Console.WriteLine("=== HTML Structure Diagnosis ===");
+var diagnoseUrl = config["Smf:DiagnoseUrl"];
+if (string.IsNullOrWhiteSpace(diagnoseUrl))
+{
+    Console.WriteLine("(skipped — set Smf:DiagnoseUrl in appsettings.json, e.g. index.php?topic=704.0)");
+}
+else
+{
+    Console.WriteLine($"Fetching: {diagnoseUrl}");
+    var rawHtml = await client.GetRawHtmlAsync(diagnoseUrl);
+    var diagnosis = SmfHtmlParser.DiagnoseHtml(rawHtml);
+    var json = System.Text.Json.JsonSerializer.Serialize(diagnosis, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+    Console.WriteLine(json);
+    var outPath = Path.Combine(AppContext.BaseDirectory, "diagnosis.json");
+    await File.WriteAllTextAsync(outPath, json);
+    Console.WriteLine($"[Saved to {outPath}]");
+}
+
+Console.WriteLine();
 Console.WriteLine("=== Create New Topic Demo ===");
 var firstBoard = (await client.GetBoardUrlsAsync()).FirstOrDefault();
 if (!enableCreateTopicDemo)
