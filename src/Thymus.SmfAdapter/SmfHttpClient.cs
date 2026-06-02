@@ -28,6 +28,7 @@ public sealed class SmfHttpClient : IDisposable
         _http = new HttpClient(handler)
         {
             BaseAddress = new Uri(_baseUrl + "/"),
+            Timeout = TimeSpan.FromSeconds(15),
         };
 
         _http.DefaultRequestHeaders.UserAgent.ParseAdd(
