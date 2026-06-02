@@ -42,6 +42,23 @@ else
             @(_loadingMore ? "Laddar..." : "Ladda fler inlägg")
         </button>
     }
+
+    <div class="mt-4">
+        <h5>Svara i tråden</h5>
+        @if (_replyError is not null)
+        {
+            <div class="alert alert-danger">@_replyError</div>
+        }
+        @if (_replySent)
+        {
+            <div class="alert alert-success">Inlägget skickades!</div>
+        }
+        <textarea class="form-control mb-2" rows="5" placeholder="Skriv ditt svar här..."
+            @bind="_replyMessage" disabled="@_sendingReply"></textarea>
+        <button class="btn btn-primary" @onclick="SendReplyAsync" disabled="@(_sendingReply || string.IsNullOrWhiteSpace(_replyMessage))">
+            @(_sendingReply ? "Skickar..." : "Skicka svar")
+        </button>
+    </div>
 }
 
 @code {
@@ -55,6 +72,10 @@ else
     private bool _loadingMore;
     private int? _nextStart;
     private bool _newestFirst = true;
+    private string _replyMessage = string.Empty;
+    private bool _sendingReply;
+    private bool _replySent;
+    private string? _replyError;
 
     protected override async Task OnInitializedAsync()
     {
@@ -118,6 +139,32 @@ else
             return;
 
         await LoadPageAsync(_nextStart.Value, reset: false);
+    }
+
+    private async Task SendReplyAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_replyMessage) || string.IsNullOrWhiteSpace(TopicUrl))
+            return;
+
+        _sendingReply = true;
+        _replyError = null;
+        _replySent = false;
+
+        var subject = string.IsNullOrWhiteSpace(_title) ? string.Empty : $"Re: {_title}";
+        var success = await ApiClient.PostReplyAsync(TopicUrl, subject, _replyMessage);
+
+        if (success)
+        {
+            _replyMessage = string.Empty;
+            _replySent = true;
+            await LoadPageAsync(0, reset: true);
+        }
+        else
+        {
+            _replyError = "Det gick inte att skicka inlägget. Försök igen.";
+        }
+
+        _sendingReply = false;
     }
 
     private static string BuildPostKey(PostDto post)

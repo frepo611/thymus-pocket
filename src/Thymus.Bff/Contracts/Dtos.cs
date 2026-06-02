@@ -9,4 +9,5 @@ namespace Thymus.Bff.Contracts;
 // BFF-internal request types (not shared with clients)
 public sealed record LoginRequest(string Username, string Password);
 public sealed record ReplyRequestDto(string Subject, string Message);
+public sealed record ThreadReplyRequest(string Url, string Subject, string Message);
 

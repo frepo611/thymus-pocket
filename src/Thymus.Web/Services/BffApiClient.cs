@@ -88,6 +88,16 @@ public sealed class BffApiClient : IDisposable
         return await response.Content.ReadFromJsonAsync<PostsPageDto>();
     }
 
+    public async Task<bool> PostReplyAsync(string topicUrl, string subject, string message)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/api/thread/reply");
+        ForwardSessionCookieToBff(request);
+        request.Content = JsonContent.Create(new { Url = topicUrl, Subject = subject, Message = message });
+
+        using var response = await _http.SendAsync(request);
+        return response.IsSuccessStatusCode;
+    }
+
     public async Task<bool> LogoutAsync()
     {
         using var request = new HttpRequestMessage(HttpMethod.Post, "/api/auth/logout");
