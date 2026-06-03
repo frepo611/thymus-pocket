@@ -11,6 +11,11 @@ else if (_unauthorized)
 {
     <p>Du är inte inloggad. <a href="/login">Logga in</a></p>
 }
+else if (_error is not null)
+{
+    <div class="alert alert-danger">@_error</div>
+    <p><a href="javascript:history.back()">Tillbaka</a></p>
+}
 else
 {
     <h1>@_title</h1>
@@ -76,6 +81,7 @@ else
     private bool _sendingReply;
     private bool _replySent;
     private string? _replyError;
+    private string? _error;
 
     protected override async Task OnInitializedAsync()
     {
@@ -95,7 +101,26 @@ else
             return;
         }
 
-        var page = await ApiClient.GetThreadPageAsync(TopicUrl, start, _newestFirst);
+        _error = null;
+        PostsPageDto? page = null;
+        try
+        {
+            page = await ApiClient.GetThreadPageAsync(TopicUrl, start, _newestFirst);
+        }
+        catch (TaskCanceledException)
+        {
+            _error = "Forumet svarade inte i tid, försök igen.";
+            _loading = false;
+            _loadingMore = false;
+            return;
+        }
+        catch (HttpRequestException)
+        {
+            _error = "Kunde inte nå servern, försök igen.";
+            _loading = false;
+            _loadingMore = false;
+            return;
+        }
 
         if (page is null)
         {
@@ -151,17 +176,29 @@ else
         _replySent = false;
 
         var subject = string.IsNullOrWhiteSpace(_title) ? string.Empty : $"Re: {_title}";
-        var success = await ApiClient.PostReplyAsync(TopicUrl, subject, _replyMessage);
+        
+        try
+        {
+            var success = await ApiClient.PostReplyAsync(TopicUrl, subject, _replyMessage);
 
-        if (success)
-        {
-            _replyMessage = string.Empty;
-            _replySent = true;
-            await LoadPageAsync(0, reset: true);
+            if (success)
+            {
+                _replyMessage = string.Empty;
+                _replySent = true;
+                await LoadPageAsync(0, reset: true);
+            }
+            else
+            {
+                _replyError = "Det gick inte att skicka inlägget. Försök igen.";
+            }
         }
-        else
+        catch (TaskCanceledException)
         {
-            _replyError = "Det gick inte att skicka inlägget. Försök igen.";
+            _replyError = "Forumet svarade inte i tid, försök igen.";
+        }
+        catch (HttpRequestException)
+        {
+            _replyError = "Kunde inte nå servern, försök igen.";
         }
 
         _sendingReply = false;
