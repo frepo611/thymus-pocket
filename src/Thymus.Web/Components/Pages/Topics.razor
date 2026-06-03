@@ -13,6 +13,11 @@ else if (_unauthorized)
 {
     <p>Du är inte inloggad. <a href="/login">Logga in</a></p>
 }
+else if (_error is not null)
+{
+    <div class="alert alert-danger">@_error</div>
+    <p><a href="/boards">Tillbaka till boards</a></p>
+}
 else
 {
     <p><a href="/boards">Tillbaka till boards</a></p>
@@ -59,6 +64,7 @@ else
     private bool _loadingMore;
     private bool _unauthorized;
     private int? _nextStart;
+    private string? _error;
 
     protected override async Task OnInitializedAsync()
     {
@@ -84,7 +90,22 @@ else
 
     private async Task LoadPageAsync(int start, bool reset)
     {
-        var page = await ApiClient.GetTopicsPageAsync(BoardId, start);
+        Contracts.TopicsPageDto? page = null;
+
+        try
+        {
+            page = await ApiClient.GetTopicsPageAsync(BoardId, start);
+        }
+        catch (TaskCanceledException)
+        {
+            _error = "Forumet svarade inte i tid, försök igen.";
+            return;
+        }
+        catch (HttpRequestException)
+        {
+            _error = "Kunde inte nå servern, försök igen.";
+            return;
+        }
 
         if (page is null)
         {
