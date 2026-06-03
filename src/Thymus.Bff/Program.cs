@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using System.Text;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.RateLimiting;
 using Thymus.Bff.Contracts;
 using Thymus.SmfAdapter;
 
@@ -10,6 +11,33 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+builder.Services.AddRateLimiter(options =>
+{
+    options.AddSlidingWindowLimiter("login", opt =>
+    {
+        opt.Window = TimeSpan.FromMinutes(15);
+        opt.SegmentsPerWindow = 1;
+        opt.PermitLimit = 5;
+        opt.QueueLimit = 2;
+    });
+
+    options.AddSlidingWindowLimiter("read", opt =>
+    {
+        opt.Window = TimeSpan.FromMinutes(1);
+        opt.SegmentsPerWindow = 1;
+        opt.PermitLimit = 100;
+        opt.QueueLimit = 10;
+    });
+
+    options.AddSlidingWindowLimiter("write", opt =>
+    {
+        opt.Window = TimeSpan.FromMinutes(1);
+        opt.SegmentsPerWindow = 1;
+        opt.PermitLimit = 20;
+        opt.QueueLimit = 5;
+    });
+});
 
 var app = builder.Build();
 
@@ -46,6 +74,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+app.UseRateLimiter();
 
 var smfBaseUrl = builder.Configuration["Smf:BaseUrl"]
     ?? throw new InvalidOperationException("Smf:BaseUrl is required.");
@@ -90,7 +120,7 @@ app.MapPost("/api/auth/login", async Task<Results<Ok, BadRequest<string>, Unauth
 
         return TypedResults.Unauthorized();
     }
-});
+}).RequireRateLimiting("login");
 
 app.MapPost("/api/auth/logout", async Task<Results<Ok, UnauthorizedHttpResult>> (HttpContext httpContext) =>
 {
@@ -111,7 +141,7 @@ app.MapPost("/api/auth/logout", async Task<Results<Ok, UnauthorizedHttpResult>> 
 
     RemoveSession(httpContext, sessions, sessionCookieName, sessionStoreDirectory);
     return TypedResults.Ok();
-});
+}).RequireRateLimiting("read");
 
 app.MapGet("/api/boards", async Task<Results<Ok<IReadOnlyList<BoardDto>>, UnauthorizedHttpResult>> (HttpContext httpContext) =>
 {
@@ -141,7 +171,7 @@ app.MapGet("/api/boards", async Task<Results<Ok<IReadOnlyList<BoardDto>>, Unauth
 
     TouchSession(session);
     return TypedResults.Ok<IReadOnlyList<BoardDto>>(results);
-});
+}).RequireRateLimiting("read");
 
 app.MapGet("/api/topics", async Task<Results<Ok<TopicsPageDto>, BadRequest<string>, NotFound<string>, UnauthorizedHttpResult>> (
     string boardId,
@@ -182,7 +212,7 @@ app.MapGet("/api/topics", async Task<Results<Ok<TopicsPageDto>, BadRequest<strin
 
     TouchSession(session);
     return TypedResults.Ok(new TopicsPageDto(items, page.NextStart));
-});
+}).RequireRateLimiting("read");
 
 app.MapGet("/api/thread", async Task<Results<Ok<PostsPageDto>, BadRequest<string>, UnauthorizedHttpResult>> (
     string url,
@@ -218,7 +248,7 @@ app.MapGet("/api/thread", async Task<Results<Ok<PostsPageDto>, BadRequest<string
 
     TouchSession(session);
     return TypedResults.Ok(new PostsPageDto(page.Title, posts, page.NextStart));
-});
+}).RequireRateLimiting("read");
 
 app.MapPost("/api/thread/reply", async Task<Results<Ok, BadRequest<string>, UnauthorizedHttpResult>> (
     ThreadReplyRequest request,
@@ -247,7 +277,7 @@ app.MapPost("/api/thread/reply", async Task<Results<Ok, BadRequest<string>, Unau
 
     TouchSession(session);
     return TypedResults.Ok();
-});
+}).RequireRateLimiting("write");
 
 app.MapGet("/api/threads", async Task<Results<Ok<IReadOnlyList<ThreadSummaryDto>>, UnauthorizedHttpResult>> (HttpContext httpContext) =>
 {
@@ -275,7 +305,7 @@ app.MapGet("/api/threads", async Task<Results<Ok<IReadOnlyList<ThreadSummaryDto>
 
     TouchSession(session);
     return TypedResults.Ok<IReadOnlyList<ThreadSummaryDto>>(results);
-});
+}).RequireRateLimiting("read");
 
 app.MapGet("/api/threads/{id}", async Task<Results<Ok<ThreadDetailsDto>, NotFound<string>, UnauthorizedHttpResult>> (
     string id,
@@ -306,7 +336,7 @@ app.MapGet("/api/threads/{id}", async Task<Results<Ok<ThreadDetailsDto>, NotFoun
 
     TouchSession(session);
     return TypedResults.Ok(dto);
-});
+}).RequireRateLimiting("read");
 
 app.MapPost("/api/threads/{id}/replies", async Task<Results<Ok, BadRequest<string>, NotFound<string>, UnauthorizedHttpResult>> (
     string id,
@@ -337,7 +367,7 @@ app.MapPost("/api/threads/{id}/replies", async Task<Results<Ok, BadRequest<strin
 
     TouchSession(session);
     return TypedResults.Ok();
-});
+}).RequireRateLimiting("write");
 
 // Temporary debug endpoint – shows HTML structure of a forum page for parser development.
 // Usage: GET /api/debug/html-structure?url=<smf-url>
