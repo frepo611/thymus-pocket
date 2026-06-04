@@ -6,21 +6,21 @@ namespace Thymus.Bff.Endpoints;
 
 public static class TopicsEndpoints
 {
-    public static void MapTopicsEndpoints(this WebApplication app, BffContext context)
+    public static void MapTopicsEndpoints(this WebApplication app, BffContext bffContext)
     {
-        app.MapGet("/api/topics", GetTopics(context)).RequireRateLimiting("read");
+        app.MapGet("/api/topics", GetTopics(bffContext)).RequireRateLimiting("read");
     }
 
-    private static Delegate GetTopics(BffContext context) =>
+    private static Delegate GetTopics(BffContext bffContext) =>
         (string boardId, int start, HttpContext httpContext) =>
-            HandleGetTopics(boardId, start, httpContext, context);
+            HandleGetTopics(boardId, start, httpContext, bffContext);
 
     private static async Task<Results<Ok<TopicsPageDto>, BadRequest<string>, NotFound<string>, UnauthorizedHttpResult>>
         HandleGetTopics(
             string boardId,
             int start,
             HttpContext httpContext,
-            BffContext context)
+            BffContext bffContext)
     {
         if (string.IsNullOrWhiteSpace(boardId))
             return TypedResults.BadRequest("boardId is required.");
@@ -31,14 +31,14 @@ public static class TopicsEndpoints
         if (start < 0)
             return TypedResults.BadRequest("start must be >= 0.");
 
-        var session = SessionHelpers.TryGetSession(httpContext, context.Sessions, context.SessionCookieName, context.SessionStoreDirectory);
+        var session = SessionHelpers.TryGetSession(httpContext, bffContext.Sessions, bffContext.SessionCookieName, bffContext.SessionStoreDirectory);
         if (session is null)
             return TypedResults.Unauthorized();
 
-        using var client = new SmfHttpClient(context.SmfBaseUrl);
+        using var client = new SmfHttpClient(bffContext.SmfBaseUrl);
         if (!client.TryLoadCookies(session.CookieFilePath))
         {
-            SessionHelpers.RemoveSession(httpContext, context.Sessions, context.SessionCookieName, context.SessionStoreDirectory);
+            SessionHelpers.RemoveSession(httpContext, bffContext.Sessions, bffContext.SessionCookieName, bffContext.SessionStoreDirectory);
             return TypedResults.Unauthorized();
         }
 

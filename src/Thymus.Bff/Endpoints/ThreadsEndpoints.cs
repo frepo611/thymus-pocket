@@ -6,28 +6,28 @@ namespace Thymus.Bff.Endpoints;
 
 public static class ThreadsEndpoints
 {
-    public static void MapThreadsEndpoints(this WebApplication app, BffContext context)
+    public static void MapThreadsEndpoints(this WebApplication app, BffContext bffContext)
     {
-        app.MapGet("/api/threads", GetAll(context)).RequireRateLimiting("read");
-        app.MapGet("/api/threads/{id}", GetById(context)).RequireRateLimiting("read");
-        app.MapPost("/api/threads/{id}/replies", PostReply(context)).RequireRateLimiting("write");
+        app.MapGet("/api/threads", GetAll(bffContext)).RequireRateLimiting("read");
+        app.MapGet("/api/threads/{id}", GetById(bffContext)).RequireRateLimiting("read");
+        app.MapPost("/api/threads/{id}/replies", PostReply(bffContext)).RequireRateLimiting("write");
     }
 
-    private static Delegate GetAll(BffContext context) =>
-        (HttpContext httpContext) => HandleGetAll(httpContext, context);
+    private static Delegate GetAll(BffContext bffContext) =>
+        (HttpContext httpContext) => HandleGetAll(httpContext, bffContext);
 
     private static async Task<Results<Ok<IReadOnlyList<ThreadSummaryDto>>, UnauthorizedHttpResult>> HandleGetAll(
         HttpContext httpContext,
-        BffContext context)
+        BffContext bffContext)
     {
-        var session = SessionHelpers.TryGetSession(httpContext, context.Sessions, context.SessionCookieName, context.SessionStoreDirectory);
+        var session = SessionHelpers.TryGetSession(httpContext, bffContext.Sessions, bffContext.SessionCookieName, bffContext.SessionStoreDirectory);
         if (session is null)
             return TypedResults.Unauthorized();
 
-        using var client = new SmfHttpClient(context.SmfBaseUrl);
+        using var client = new SmfHttpClient(bffContext.SmfBaseUrl);
         if (!client.TryLoadCookies(session.CookieFilePath))
         {
-            SessionHelpers.RemoveSession(httpContext, context.Sessions, context.SessionCookieName, context.SessionStoreDirectory);
+            SessionHelpers.RemoveSession(httpContext, bffContext.Sessions, bffContext.SessionCookieName, bffContext.SessionStoreDirectory);
             return TypedResults.Unauthorized();
         }
 
@@ -46,23 +46,23 @@ public static class ThreadsEndpoints
         return TypedResults.Ok<IReadOnlyList<ThreadSummaryDto>>(results);
     }
 
-    private static Delegate GetById(BffContext context) =>
+    private static Delegate GetById(BffContext bffContext) =>
         (string id, HttpContext httpContext) =>
-            HandleGetById(id, httpContext, context);
+            HandleGetById(id, httpContext, bffContext);
 
     private static async Task<Results<Ok<ThreadDetailsDto>, NotFound<string>, UnauthorizedHttpResult>> HandleGetById(
         string id,
         HttpContext httpContext,
-        BffContext context)
+        BffContext bffContext)
     {
-        var session = SessionHelpers.TryGetSession(httpContext, context.Sessions, context.SessionCookieName, context.SessionStoreDirectory);
+        var session = SessionHelpers.TryGetSession(httpContext, bffContext.Sessions, bffContext.SessionCookieName, bffContext.SessionStoreDirectory);
         if (session is null)
             return TypedResults.Unauthorized();
 
-        using var client = new SmfHttpClient(context.SmfBaseUrl);
+        using var client = new SmfHttpClient(bffContext.SmfBaseUrl);
         if (!client.TryLoadCookies(session.CookieFilePath))
         {
-            SessionHelpers.RemoveSession(httpContext, context.Sessions, context.SessionCookieName, context.SessionStoreDirectory);
+            SessionHelpers.RemoveSession(httpContext, bffContext.Sessions, bffContext.SessionCookieName, bffContext.SessionStoreDirectory);
             return TypedResults.Unauthorized();
         }
 
@@ -82,27 +82,27 @@ public static class ThreadsEndpoints
         return TypedResults.Ok(dto);
     }
 
-    private static Delegate PostReply(BffContext context) =>
+    private static Delegate PostReply(BffContext bffContext) =>
         (string id, ReplyRequestDto request, HttpContext httpContext) =>
-            HandlePostReply(id, request, httpContext, context);
+            HandlePostReply(id, request, httpContext, bffContext);
 
     private static async Task<Results<Ok, BadRequest<string>, NotFound<string>, UnauthorizedHttpResult>> HandlePostReply(
         string id,
         ReplyRequestDto request,
         HttpContext httpContext,
-        BffContext context)
+        BffContext bffContext)
     {
         if (string.IsNullOrWhiteSpace(request.Subject) || string.IsNullOrWhiteSpace(request.Message))
             return TypedResults.BadRequest("Subject and message are required.");
 
-        var session = SessionHelpers.TryGetSession(httpContext, context.Sessions, context.SessionCookieName, context.SessionStoreDirectory);
+        var session = SessionHelpers.TryGetSession(httpContext, bffContext.Sessions, bffContext.SessionCookieName, bffContext.SessionStoreDirectory);
         if (session is null)
             return TypedResults.Unauthorized();
 
-        using var client = new SmfHttpClient(context.SmfBaseUrl);
+        using var client = new SmfHttpClient(bffContext.SmfBaseUrl);
         if (!client.TryLoadCookies(session.CookieFilePath))
         {
-            SessionHelpers.RemoveSession(httpContext, context.Sessions, context.SessionCookieName, context.SessionStoreDirectory);
+            SessionHelpers.RemoveSession(httpContext, bffContext.Sessions, bffContext.SessionCookieName, bffContext.SessionStoreDirectory);
             return TypedResults.Unauthorized();
         }
 

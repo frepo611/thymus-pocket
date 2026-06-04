@@ -6,26 +6,26 @@ namespace Thymus.Bff.Endpoints;
 
 public static class BoardsEndpoints
 {
-    public static void MapBoardsEndpoints(this WebApplication app, BffContext context)
+    public static void MapBoardsEndpoints(this WebApplication app, BffContext bffContext)
     {
-        app.MapGet("/api/boards", GetBoards(context)).RequireRateLimiting("read");
+        app.MapGet("/api/boards", GetBoards(bffContext)).RequireRateLimiting("read");
     }
 
-    private static Delegate GetBoards(BffContext context) =>
-        (HttpContext httpContext) => HandleGetBoards(httpContext, context);
+    private static Delegate GetBoards(BffContext bffContext) =>
+        (HttpContext httpContext) => HandleGetBoards(httpContext, bffContext);
 
     private static async Task<Results<Ok<IReadOnlyList<BoardDto>>, UnauthorizedHttpResult>> HandleGetBoards(
         HttpContext httpContext,
-        BffContext context)
+        BffContext bffContext)
     {
-        var session = SessionHelpers.TryGetSession(httpContext, context.Sessions, context.SessionCookieName, context.SessionStoreDirectory);
+        var session = SessionHelpers.TryGetSession(httpContext, bffContext.Sessions, bffContext.SessionCookieName, bffContext.SessionStoreDirectory);
         if (session is null)
             return TypedResults.Unauthorized();
 
-        using var client = new SmfHttpClient(context.SmfBaseUrl);
+        using var client = new SmfHttpClient(bffContext.SmfBaseUrl);
         if (!client.TryLoadCookies(session.CookieFilePath))
         {
-            SessionHelpers.RemoveSession(httpContext, context.Sessions, context.SessionCookieName, context.SessionStoreDirectory);
+            SessionHelpers.RemoveSession(httpContext, bffContext.Sessions, bffContext.SessionCookieName, bffContext.SessionStoreDirectory);
             return TypedResults.Unauthorized();
         }
 
