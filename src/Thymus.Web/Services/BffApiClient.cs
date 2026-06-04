@@ -6,18 +6,21 @@ namespace Thymus.Web.Services;
 public sealed class BffApiClient : IDisposable
 {
     private const string SessionCookieName = "thymus_session";
+    private const string InternalSecretHeaderName = "X-Thymus-Internal-Secret";
 
     private readonly HttpClient _http;
     private readonly IHttpContextAccessor _httpContextAccessor;
+    private readonly string _internalApiSecret;
     private string? _sessionId;
 
-    public BffApiClient(string baseUrl, IHttpContextAccessor httpContextAccessor)
+    public BffApiClient(string baseUrl, string internalApiSecret, IHttpContextAccessor httpContextAccessor)
     {
         _http = new HttpClient
         {
             BaseAddress = new Uri(baseUrl, UriKind.Absolute),
         };
 
+        _internalApiSecret = internalApiSecret;
         _httpContextAccessor = httpContextAccessor;
     }
 
@@ -115,6 +118,8 @@ public sealed class BffApiClient : IDisposable
 
     private void ForwardSessionCookieToBff(HttpRequestMessage request)
     {
+        request.Headers.TryAddWithoutValidation(InternalSecretHeaderName, _internalApiSecret);
+
         if (!string.IsNullOrWhiteSpace(_sessionId))
         {
             request.Headers.TryAddWithoutValidation("Cookie", $"{SessionCookieName}={_sessionId}");

@@ -14,7 +14,9 @@ builder.Services.AddScoped<BffApiClient>(sp =>
     var configuration = sp.GetRequiredService<IConfiguration>();
     var httpContextAccessor = sp.GetRequiredService<IHttpContextAccessor>();
     var baseUrl = configuration["Bff:BaseUrl"] ?? "https://localhost:5001";
-    return new BffApiClient(baseUrl, httpContextAccessor);
+    var internalApiSecret = configuration["Bff:InternalApiSharedSecret"]
+        ?? throw new InvalidOperationException("Bff:InternalApiSharedSecret is required.");
+    return new BffApiClient(baseUrl, internalApiSecret, httpContextAccessor);
 });
 
 var app = builder.Build();

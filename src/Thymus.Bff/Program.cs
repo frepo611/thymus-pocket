@@ -1,4 +1,6 @@
 using System.Collections.Concurrent;
+using System.Security.Cryptography;
+using System.Text;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.RateLimiting;
@@ -82,10 +84,38 @@ var smfBaseUrl = builder.Configuration["Smf:BaseUrl"]
 
 var sessionStoreDirectoryRaw = builder.Configuration["Session:StoreDirectory"] ?? ".sessions";
 var sessionCookieName = builder.Configuration["Session:CookieName"] ?? "thymus_session";
+var trustedCallerSecret = builder.Configuration["InternalApi:SharedSecret"]
+    ?? throw new InvalidOperationException("InternalApi:SharedSecret is required.");
 var sessionStoreDirectory = Path.IsPathRooted(sessionStoreDirectoryRaw)
     ? sessionStoreDirectoryRaw
     : Path.Combine(app.Environment.ContentRootPath, sessionStoreDirectoryRaw);
 Directory.CreateDirectory(sessionStoreDirectory);
+
+app.Use(async (context, next) =>
+{
+    if (!context.Request.Path.StartsWithSegments("/api", StringComparison.OrdinalIgnoreCase))
+    {
+        await next();
+        return;
+    }
+
+    if (!context.Request.Headers.TryGetValue("X-Thymus-Internal-Secret", out var headerValue))
+    {
+        context.Response.StatusCode = StatusCodes.Status403Forbidden;
+        await context.Response.WriteAsJsonAsync(new { message = "Forbidden." });
+        return;
+    }
+
+    var providedSecret = headerValue.ToString();
+    if (string.IsNullOrWhiteSpace(providedSecret) || !FixedTimeEquals(providedSecret, trustedCallerSecret))
+    {
+        context.Response.StatusCode = StatusCodes.Status403Forbidden;
+        await context.Response.WriteAsJsonAsync(new { message = "Forbidden." });
+        return;
+    }
+
+    await next();
+});
 
 var sessions = new ConcurrentDictionary<string, SessionState>(StringComparer.Ordinal);
 
@@ -105,6 +135,13 @@ app.MapThreadsEndpoints(bffContext);
 app.MapDebugEndpoints(bffContext);
 
 app.Run();
+
+static bool FixedTimeEquals(string providedValue, string expectedValue)
+{
+    var providedBytes = Encoding.UTF8.GetBytes(providedValue);
+    var expectedBytes = Encoding.UTF8.GetBytes(expectedValue);
+    return CryptographicOperations.FixedTimeEquals(providedBytes, expectedBytes);
+}
 
 
 
