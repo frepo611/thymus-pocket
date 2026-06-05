@@ -1,0 +1,11 @@
+@page "/"
+@inject NavigationManager Navigation
+
+<PageTitle>Thymus.se</PageTitle>
+
+@code {
+    protected override void OnInitialized()
+    {
+        Navigation.NavigateTo("/boards", replace: true);
+    }
+}

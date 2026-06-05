@@ -1,23 +1,15 @@
 using Thymus.Web.Components;
-using Thymus.Web.Services;
+using Microsoft.AspNetCore.Components.WebAssembly.Server;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
-    .AddInteractiveServerComponents();
+    .AddInteractiveWebAssemblyComponents();
 
-builder.Services.AddHttpContextAccessor();
-
-builder.Services.AddScoped<BffApiClient>(sp =>
-{
-    var configuration = sp.GetRequiredService<IConfiguration>();
-    var httpContextAccessor = sp.GetRequiredService<IHttpContextAccessor>();
-    var baseUrl = configuration["Bff:BaseUrl"] ?? "https://localhost:5001";
-    var internalApiSecret = configuration["Bff:InternalApiSharedSecret"]
-        ?? throw new InvalidOperationException("Bff:InternalApiSharedSecret is required.");
-    return new BffApiClient(baseUrl, internalApiSecret, httpContextAccessor);
-});
+builder.Services.AddReverseProxy()
+    .LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"));
 
 var app = builder.Build();
 
@@ -35,6 +27,9 @@ app.UseAntiforgery();
 
 app.MapStaticAssets();
 app.MapRazorComponents<App>()
-    .AddInteractiveServerRenderMode();
+    .AddInteractiveWebAssemblyRenderMode()
+    .AddAdditionalAssemblies(typeof(Thymus.Web.Client._Imports).Assembly);
+
+app.MapReverseProxy();
 
 app.Run();
