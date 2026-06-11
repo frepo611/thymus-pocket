@@ -80,7 +80,6 @@ public static class AuthEndpoints
         }
         catch
         {
-            // Best effort logout towards SMF; local session is still removed.
         }
 
         SessionHelpers.RemoveSession(

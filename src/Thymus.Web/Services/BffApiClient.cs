@@ -110,7 +110,6 @@ public sealed class BffApiClient : IDisposable
         using var response = await _http.SendAsync(request);
         ReflectSessionCookieToBrowser(response);
 
-        // Ensure browser cookie is cleared locally even if BFF does not emit Set-Cookie on unauthorized.
         DeleteSessionCookieFromBrowser();
 
         return response.IsSuccessStatusCode;

@@ -8,22 +8,22 @@ var config = new ConfigurationBuilder()
     .AddEnvironmentVariables("SMF_")
     .Build();
 
-var baseUrl       = config["Smf:BaseUrl"]    ?? throw new InvalidOperationException("Smf:BaseUrl is required.");
-var username      = config["Smf:Username"];
+var baseUrl = config["Smf:BaseUrl"] ?? throw new InvalidOperationException("Smf:BaseUrl is required.");
+var username = config["Smf:Username"];
 if (string.IsNullOrWhiteSpace(username))
     throw new InvalidOperationException("Smf:Username is required (set via SMF_Smf__Username).");
 
-var password      = config["Smf:Password"];
+var password = config["Smf:Password"];
 if (string.IsNullOrWhiteSpace(password))
     throw new InvalidOperationException("Smf:Password is required (set via SMF_Smf__Password).");
 
-var cookieFileRaw   = config["Smf:CookieFile"] ?? "smf_session.json";
-var cookieFile      = Path.IsPathRooted(cookieFileRaw)
+var cookieFileRaw = config["Smf:CookieFile"] ?? "smf_session.json";
+var cookieFile = Path.IsPathRooted(cookieFileRaw)
     ? cookieFileRaw
     : Path.Combine(AppContext.BaseDirectory, cookieFileRaw);
-var enableReplyDemo       = bool.TryParse(config["Smf:EnableReplyDemo"],       out var r)  && r;
+var enableReplyDemo = bool.TryParse(config["Smf:EnableReplyDemo"], out var r) && r;
 var enableCreateTopicDemo = bool.TryParse(config["Smf:EnableCreateTopicDemo"], out var ct) && ct;
-var enableLogoutDemo      = bool.TryParse(config["Smf:EnableLogoutDemo"],      out var lo) && lo;
+var enableLogoutDemo = bool.TryParse(config["Smf:EnableLogoutDemo"], out var lo) && lo;
 
 Console.WriteLine($"Connecting to {baseUrl} ...");
 
@@ -38,7 +38,6 @@ try
 {
     if (sessionLoaded)
     {
-        // Validate stored session with a cheap call; re-login on failure
         try
         {
             await client.GetAllTopicsAsync();
